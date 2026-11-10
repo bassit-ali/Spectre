@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PelcoPT — Pan/Tilt Controller</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">PT</span>
+        <div>
+          <h1>PelcoPT</h1>
+          <p>Chinese Pelco-D pan / tilt</p>
+        </div>
+      </div>
+      <div class="conn" id="connPanel">
+        <label>
+          Port
+          <select id="portSelect"></select>
+        </label>
+        <button type="button" id="refreshPorts" class="ghost">Refresh</button>
+        <label>
+          Baud
+          <select id="baudSelect">
+            <option>2400</option>
+            <option>4800</option>
+            <option selected>9600</option>
+            <option>19200</option>
+            <option>38400</option>
+          </select>
+        </label>
+        <label>
+          Addr
+          <input id="addressInput" type="number" min="1" max="255" value="1" />
+        </label>
+        <button type="button" id="connectBtn" class="primary">Connect</button>
+        <button type="button" id="disconnectBtn" class="ghost">Disconnect</button>
+        <span id="linkBadge" class="badge off">Offline</span>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel">
+        <h2>Motion</h2>
+        <div class="pad" id="jogPad">
+          <button data-jog="upleft" title="Up Left">↖</button>
+          <button data-jog="up" title="Up">▲</button>
+          <button data-jog="upright" title="Up Right">↗</button>
+          <button data-jog="left" title="Left">◀</button>
+          <button id="stopBtn" class="stop" title="Stop">STOP</button>
+          <button data-jog="right" title="Right">▶</button>
+          <button data-jog="downleft" title="Down Left">↙</button>
+          <button data-jog="down" title="Down">▼</button>
+          <button data-jog="downright" title="Down Right">↘</button>
+        </div>
+        <div class="sliders">
+          <label>Pan speed <input id="panSpeed" type="range" min="1" max="63" value="32" /><span id="panSpeedVal">32</span></label>
+          <label>Tilt speed <input id="tiltSpeed" type="range" min="1" max="63" value="24" /><span id="tiltSpeedVal">24</span></label>
+        </div>
+        <div class="approach">
+          <h3>Approach ramp</h3>
+          <label>Fast <input id="speedFast" type="range" min="1" max="63" value="48" /><span id="speedFastVal">48</span></label>
+          <label>Slow <input id="speedSlow" type="range" min="1" max="63" value="8" /><span id="speedSlowVal">8</span></label>
+          <label>Ramp ° <input id="rampDistance" type="number" min="0.5" max="90" step="0.5" value="15" /></label>
+          <label>Deadband ° <input id="deadband" type="number" min="0.1" max="5" step="0.1" value="0.4" /></label>
+        </div>
+        <div class="goto-row">
+          <label>Goto pan <input id="gotoPan" type="number" step="0.1" /></label>
+          <label>Goto tilt <input id="gotoTilt" type="number" step="0.1" /></label>
+          <button type="button" id="gotoBtn" class="primary">Go</button>
+          <button type="button" id="refreshEnc" class="ghost">Read encoders</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Encoders</h2>
+        <div class="encoders">
+          <div class="gauge">
+            <span class="label">Pan</span>
+            <strong id="panDeg">—</strong>
+            <small id="panRaw">raw —</small>
+          </div>
+          <div class="gauge">
+            <span class="label">Tilt</span>
+            <strong id="tiltDeg">—</strong>
+            <small id="tiltRaw">raw —</small>
+          </div>
+        </div>
+        <div class="snapshot">
+          <h3>Before / after</h3>
+          <pre id="moveSnapshot">No moves yet</pre>
+        </div>
+        <div class="limits">
+          <h3>Tilt limits</h3>
+          <label class="check"><input id="limitsEnabled" type="checkbox" checked /> Enable</label>
+          <div class="limit-grid">
+            <label>Min <input id="tiltMin" type="number" step="0.1" value="-90" /></label>
+            <label>Max <input id="tiltMax" type="number" step="0.1" value="90" /></label>
+          </div>
+          <div class="row">
+            <button type="button" id="setTiltMinNow" class="ghost">Min = now</button>
+            <button type="button" id="setTiltMaxNow" class="ghost">Max = now</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel span-2">
+        <div class="presets-head">
+          <h2>Presets 3×3</h2>
+          <div class="row">
+            <label class="check"><input id="showWidget" type="checkbox" checked /> Floating widget</label>
+            <label class="check"><input id="widgetPinned" type="checkbox" checked /> Always on top</label>
+            <label>Opacity <input id="widgetOpacity" type="range" min="0.2" max="1" step="0.05" value="0.85" /></label>
+            <label class="check"><input id="openAtLogin" type="checkbox" checked /> Start on login</label>
+            <label class="check"><input id="autoConnect" type="checkbox" checked /> Auto-connect</label>
+          </div>
+        </div>
+        <div class="preset-grid" id="presetGrid"></div>
+      </section>
+
+      <section class="panel span-2">
+        <h2>Serial console</h2>
+        <pre id="serialLog" class="log"></pre>
+      </section>
+    </main>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

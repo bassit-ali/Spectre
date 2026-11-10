@@ -1,0 +1,14 @@
+{
+  "name": "spectre-pip-shell",
+  "version": "1.0.0",
+  "description": "Thin always-on-top Electron shell for the SPECTRE widget. Requires the SPECTRE server on http://127.0.0.1:9000.",
+  "main": "main.js",
+  "author": "SPECTRE",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "electron": "^33.2.0"
+  }
+}

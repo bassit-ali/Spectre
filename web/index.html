@@ -1,0 +1,695 @@
+﻿<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPECTRE — PAN-TILT PEDESTAL CONTROLLER</title>
+  <script type="module" src="/src/console.ts"></script>
+</head>
+<body class="bg-surface-container-lowest text-on-surface font-body-md text-body-md select-none">
+
+<!-- ===================================================================== -->
+<!-- TOP BAR                                                                -->
+<!-- ===================================================================== -->
+<header id="app-header" class="fixed top-0 left-0 right-0 h-14 bg-surface-container-lowest/95 backdrop-blur-md z-50 flex items-center justify-between px-space-lg shadow-[0_1px_8px_rgba(0,0,0,0.4)]">
+  <div class="flex items-center gap-space-sm">
+    <div class="w-7 h-7 bg-surface-container flex items-center justify-center rounded">
+      <span class="material-symbols-outlined text-primary text-[18px]">radar</span>
+    </div>
+    <div class="flex flex-col">
+      <span class="font-headline-sm text-headline-sm font-bold tracking-wider text-primary leading-none" id="product-name">SPECTRE</span>
+      <span class="font-label-code text-label-code text-on-surface-variant uppercase tracking-widest leading-none mt-1" id="product-subtitle">PAN-TILT PEDESTAL CONTROLLER</span>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-space-sm ml-auto">
+    <div class="hidden xl:flex items-center gap-space-sm">
+      <div class="flex items-center gap-space-xs bg-surface-container-low px-space-md py-1 rounded" id="header-link-chip">
+        <span class="dot" data-dot="link"></span>
+        <span class="font-label-code text-label-code text-on-surface-variant uppercase">COM LINK:</span>
+        <span class="font-label-telemetry-sm text-label-telemetry-sm text-primary" data-bind="link">NO LINK</span>
+      </div>
+      <div class="flex items-center gap-space-xs bg-surface-container-low px-space-md py-1 rounded" id="header-ws-chip">
+        <span class="dot" data-dot="ws"></span>
+        <span class="font-label-code text-label-code text-on-surface-variant uppercase">SERVER:</span>
+        <span class="font-label-telemetry-sm text-label-telemetry-sm text-secondary" data-bind="ws">WS OFFLINE</span>
+      </div>
+      <div class="flex items-center gap-space-xs bg-surface-container-low px-space-md py-1 rounded">
+        <span class="font-label-code text-label-code text-on-surface-variant uppercase">WS RTT:</span>
+        <span class="font-label-telemetry-sm text-label-telemetry-sm text-on-surface" data-bind="ws-latency">—</span>
+      </div>
+    </div>
+    <div class="hidden md:flex items-center gap-space-xs px-space-sm py-1 bg-surface-container rounded" id="header-credit">
+      <span class="material-symbols-outlined text-secondary text-[14px]">shield</span>
+      <span class="font-label-telemetry-sm text-label-telemetry-sm text-secondary uppercase">26 SIG BN R&amp;D WING</span>
+    </div>
+    <button id="header-open-widget-btn" data-action="open-widget" type="button"
+      class="flex items-center gap-1 bg-surface-container hover:bg-surface-container-high text-primary font-label-code text-label-code uppercase font-bold px-space-sm py-1.5 rounded transition-colors">
+      <span class="material-symbols-outlined text-[16px]">picture_in_picture_alt</span>
+      <span class="hidden sm:inline">Widget</span>
+    </button>
+    <button id="header-halt-btn" data-action="halt" type="button" title="Emergency stop"
+      class="flex items-center gap-1 bg-error-container hover:bg-error text-white hover:text-on-error font-label-code text-label-code uppercase font-extrabold tracking-widest px-space-md py-1.5 rounded transition-colors">
+      <span class="material-symbols-outlined text-[16px]">pan_tool</span>HALT
+    </button>
+  </div>
+</header>
+
+<!-- ===================================================================== -->
+<!-- MAIN — single page                                                    -->
+<!-- ===================================================================== -->
+<main class="w-full min-h-screen pt-14 bg-surface text-on-surface px-space-lg py-space-md">
+<div class="flex flex-col w-full max-w-6xl mx-auto">
+
+  <!-- ============ TACTICAL RIBBON ============ -->
+  <div id="ribbon" class="w-full bg-surface-container-low px-space-md py-space-sm rounded-lg shadow-md mb-space-md mt-space-md flex flex-wrap items-center gap-space-sm">
+    <div class="flex flex-wrap items-center gap-space-md">
+      <div class="flex items-center gap-space-xs bg-surface-container-lowest px-space-sm py-1 rounded" id="ribbon-link">
+        <span class="dot" data-dot="link"></span>
+        <span class="font-label-code text-label-code text-on-surface-variant uppercase">LINK:</span>
+        <span class="font-label-telemetry-sm text-label-telemetry-sm text-primary uppercase" data-bind="link">NO LINK</span>
+      </div>
+      <div class="flex items-center gap-space-xs bg-surface-container-lowest px-space-sm py-1 rounded" id="ribbon-bus">
+        <span class="material-symbols-outlined text-secondary text-[15px]">settings_ethernet</span>
+        <span class="font-label-code text-label-code text-on-surface-variant uppercase">BUS:</span>
+        <span class="font-label-telemetry-sm text-label-telemetry-sm text-secondary" data-bind="bus">RS-485 · PELCO-D 9600-8N1 · ADDR 01</span>
+      </div>
+      <!-- Endpoint chip (copyable) -->
+      <button type="button" id="ribbon-endpoint-chip" class="endpoint-chip" data-endpoint-chip>
+        <span class="material-symbols-outlined">lan</span>
+        <span data-endpoint-text>LOCAL http://127.0.0.1:9000</span>
+        <span class="material-symbols-outlined">content_copy</span>
+      </button>
+      <div class="flex items-center gap-space-xs bg-surface-container-lowest px-space-sm py-1 rounded" id="ribbon-pose">
+        <span class="font-label-code text-label-code text-on-surface-variant uppercase">PAN</span>
+        <span class="font-label-telemetry-sm text-label-telemetry-sm text-primary" data-bind="pan">—°</span>
+        <span class="font-label-code text-label-code text-on-surface-variant uppercase ml-1">TILT</span>
+        <span class="font-label-telemetry-sm text-label-telemetry-sm text-secondary" data-bind="tilt">—°</span>
+      </div>
+      <span class="font-label-telemetry-sm text-label-telemetry-sm text-on-surface-variant" data-bind="app-version">v0.0.0</span>
+    </div>
+  </div>
+
+  <div class="flex flex-col gap-space-md w-full">
+
+      <!-- ====== 3D GIMBAL VECTOR CORE ====== -->
+      <section id="sec-gimbal" class="bg-surface-container-low rounded-xl p-space-md shadow-xl border border-outline-variant/30 relative overflow-hidden">
+        <div class="flex items-center justify-between pb-space-sm mb-space-sm bg-surface-container-lowest/40 px-space-sm py-space-xs rounded">
+          <div class="flex items-center gap-space-xs">
+            <span class="material-symbols-outlined text-primary text-[20px]">radar</span>
+            <div class="flex flex-col">
+              <span class="font-headline-sm text-headline-sm text-primary uppercase tracking-wide leading-none">2D Pan Pad · Tilt Slider</span>
+              <span class="font-label-code text-[9px] text-on-surface-variant uppercase tracking-widest mt-0.5">PAN = ANGLE ON PAD · TILT = VERTICAL SLIDER</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-space-sm">
+            <span class="font-label-code text-label-code text-secondary bg-surface-container-lowest px-2 py-0.5 rounded font-bold" id="motion-chip">CMD: <span data-bind="motion">IDLE</span></span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-space-md items-center">
+          <!-- Vector viewport + manipulators -->
+          <div class="md:col-span-7 flex flex-col items-center justify-center p-space-sm bg-surface-container rounded-lg shadow-inner relative">
+            <div class="w-full flex items-center justify-between mb-1 px-1 text-label-code font-label-code">
+              <div class="flex items-center gap-1 bg-surface-container-lowest/80 px-2 py-1 rounded border border-primary/20">
+                <span class="text-on-surface-variant uppercase text-[9px]">PAN (PAD):</span>
+                <span class="text-primary font-bold font-label-telemetry-sm" id="sphere-direction-readout">—° [—]</span>
+              </div>
+              <div class="flex items-center gap-1 bg-surface-container-lowest/80 px-2 py-1 rounded border border-secondary/20">
+                <span class="text-on-surface-variant uppercase text-[9px]">TILT (SLIDER):</span>
+                <span class="text-secondary font-bold font-label-telemetry-sm" id="sphere-height-readout">—°</span>
+              </div>
+            </div>
+
+            <div class="w-full flex items-center justify-center gap-3 my-1 select-none" id="gimbal-sphere-wrap">
+              <div class="relative w-full max-w-[280px] h-64 shrink-0 flex items-center justify-center">
+                <!-- HOME / STORAGE / OFF: pan 0° / tilt 0° flat -->
+                <button type="button" id="home-btn" data-action="home"
+                  title="Home / storage / off — pan 0° · tilt flat 0°" aria-label="Home storage off — pan 0 tilt flat 0"
+                  class="absolute top-0 right-0 z-10 w-7 h-7 flex items-center justify-center rounded bg-surface-container-lowest/90 border border-primary/30 text-primary hover:bg-primary-container hover:text-on-primary-container transition-colors">
+                  <span class="material-symbols-outlined text-[18px]">home</span>
+                </button>
+
+                <svg class="w-full h-full text-outline-variant drop-shadow" id="gimbal-sphere-svg" viewBox="0 0 260 240">
+                  <defs>
+                    <radialGradient cx="50%" cy="50%" id="sphereGlow" r="55%">
+                      <stop offset="0%" stop-color="#123038" stop-opacity="0.85"></stop>
+                      <stop offset="100%" stop-color="#070b10" stop-opacity="0.98"></stop>
+                    </radialGradient>
+                    <radialGradient cx="50%" cy="50%" id="cursorGlow" r="50%">
+                      <stop offset="0%" stop-color="#00f0ff" stop-opacity="1"></stop>
+                      <stop offset="50%" stop-color="#00dbe9" stop-opacity="0.6"></stop>
+                      <stop offset="100%" stop-color="#004f54" stop-opacity="0"></stop>
+                    </radialGradient>
+                    <clipPath id="sphereDiskClip">
+                      <circle cx="130" cy="120" r="100"></circle>
+                    </clipPath>
+                  </defs>
+                  <!-- Flat 2D pan disc: angle = pan only -->
+                  <circle cx="130" cy="120" fill="url(#sphereGlow)" r="100" stroke="#3b494b" stroke-width="1.5"></circle>
+                  <circle cx="130" cy="120" fill="none" r="100" stroke="#00dbe9" stroke-width="1.6" stroke-opacity="0.45" pointer-events="none"></circle>
+                  <circle cx="130" cy="120" fill="none" r="78" stroke="#849495" stroke-opacity="0.35" stroke-width="1" stroke-dasharray="3,4" pointer-events="none"></circle>
+                  <line opacity="0.4" stroke="#849495" stroke-width="1" x1="130" x2="130" y1="22" y2="218"></line>
+                  <line opacity="0.4" stroke="#849495" stroke-width="1" x1="32" x2="228" y1="120" y2="120"></line>
+                  <g class="font-label-code" font-size="8" fill="currentColor" text-anchor="middle" style="fill:#b9cacb" pointer-events="none">
+                    <text x="130" y="28" fill="#dbfcff" style="fill:#dbfcff" font-weight="bold">0°</text>
+                    <text x="236" y="124" fill="#b9cacb" style="fill:#b9cacb">90°</text>
+                    <text x="130" y="228" fill="#b9cacb" style="fill:#b9cacb" font-weight="bold">180°</text>
+                    <text x="24" y="124" fill="#b9cacb" style="fill:#b9cacb">270°</text>
+                  </g>
+                  <g id="sphere-vector-layer" opacity="0.2" pointer-events="none">
+                    <line id="sphere-vector-beam" opacity="0.85" stroke="#00dbe9" stroke-dasharray="4,2" stroke-width="2" x1="130" x2="130" y1="120" y2="120"></line>
+                    <circle id="sphere-hub-ring" cx="130" cy="120" fill="#1c2025" r="7" stroke="#00dbe9" stroke-width="1.5"></circle>
+                    <circle id="sphere-hub-core" cx="130" cy="120" fill="#00f0ff" r="2.5"></circle>
+                    <g id="vector-target-node" transform="translate(130, 120)">
+                      <circle id="sphere-aim-glow" cx="0" cy="0" fill="url(#cursorGlow)" r="14"></circle>
+                      <circle id="sphere-aim-ring" cx="0" cy="0" fill="none" r="8" stroke="#00f0ff" stroke-width="1.8"></circle>
+                      <circle id="sphere-aim-core" cx="0" cy="0" fill="#dbfcff" r="3.5"></circle>
+                      <line id="sphere-aim-h" stroke="#00f0ff" stroke-width="1" x1="-11" x2="11" y1="0" y2="0"></line>
+                      <line id="sphere-aim-v" stroke="#00f0ff" stroke-width="1" x1="0" x2="0" y1="-11" y2="11"></line>
+                    </g>
+                  </g>
+                  <g id="sphere-pan-badges" pointer-events="none" aria-label="Camera sectors A 0 B 120 C 240"></g>
+                  <circle id="sphere-hit" cx="130" cy="120" r="100" fill="transparent" stroke="none" style="cursor:crosshair; touch-action:none"></circle>
+                </svg>
+              </div>
+
+              <!-- Tilt rail height-matched to the pan disc -->
+              <div class="tilt-rail tilt-rail--console">
+                <span class="tilt-rail-cap">+50° UP</span>
+                <div class="tilt-track">
+                  <div class="tilt-level-bar" title="0° LEVEL"></div>
+                  <span class="tilt-level-tag">0°</span>
+                  <input class="tilt-slider-v" id="tilt-slider" data-action="tilt-slider" max="50" min="-50" step="0.25" type="range" value="0" title="Tilt slider" aria-label="Tilt degrees" />
+                </div>
+                <span class="font-label-code text-[9px] text-secondary font-bold leading-none" id="tilt-slider-label">—°</span>
+                <span class="tilt-rail-cap">−50° DOWN</span>
+              </div>
+            </div>
+
+            <!-- Step + hold-to-jog -->
+            <div class="flex flex-wrap items-center justify-between gap-space-sm mt-space-sm w-full px-1">
+              <div class="flex items-center gap-1">
+                <span class="font-label-code text-[9px] text-on-surface-variant uppercase">TAP STEP:</span>
+                <div class="inline-flex bg-surface-container-lowest p-0.5 rounded" id="step-group">
+                  <button type="button" data-action="set-step" data-step="1" class="step-btn px-2 py-0.5 rounded font-label-code text-[10px] bg-primary-container text-on-primary-container font-bold shadow transition-colors" aria-pressed="true">1°</button>
+                  <button type="button" data-action="set-step" data-step="5" class="step-btn px-2 py-0.5 rounded font-label-code text-[10px] text-on-surface hover:text-primary transition-colors">5°</button>
+                  <button type="button" data-action="set-step" data-step="10" class="step-btn px-2 py-0.5 rounded font-label-code text-[10px] text-on-surface hover:text-primary transition-colors">10°</button>
+                </div>
+              </div>
+              <div class="flex items-center gap-1">
+                <button type="button" id="jog-left" data-jog="left" title="Pan − (hold)" class="jog-btn bg-surface-container-high hover:bg-surface-container-highest text-primary font-label-code text-[10px] px-2 py-0.5 rounded uppercase font-bold">◀ PAN −</button>
+                <button type="button" id="jog-right" data-jog="right" title="Pan + (hold)" class="jog-btn bg-surface-container-high hover:bg-surface-container-highest text-primary font-label-code text-[10px] px-2 py-0.5 rounded uppercase font-bold">PAN + ▶</button>
+                <button type="button" id="jog-up" data-jog="up" title="Tilt up +" class="jog-btn bg-surface-container-high hover:bg-surface-container-highest text-secondary font-label-code text-[10px] px-2 py-0.5 rounded uppercase font-bold">▲ UP +</button>
+                <button type="button" id="jog-down" data-jog="down" title="Tilt down −" class="jog-btn bg-surface-container-high hover:bg-surface-container-highest text-secondary font-label-code text-[10px] px-2 py-0.5 rounded uppercase font-bold">DOWN − ▼</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- GOTO + HALT -->
+          <div class="md:col-span-5 flex flex-col justify-between h-full bg-surface-container rounded-lg p-space-md shadow-inner gap-space-sm">
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <span class="font-headline-sm text-headline-sm text-secondary uppercase tracking-wider block">Go To Position</span>
+                <span class="font-label-code text-label-code text-primary bg-surface-container-lowest px-1.5 py-0.5 rounded">ABSOLUTE</span>
+              </div>
+              <p class="font-label-code text-label-code text-on-surface-variant">Enter absolute pan / tilt angles. The server drives the head with Pelco-D moves and closes the loop on angle queries.</p>
+            </div>
+            <div class="flex flex-col gap-space-sm">
+              <div class="bg-surface-container-lowest p-space-sm rounded border border-outline-variant/30">
+                <div class="flex justify-between items-center mb-1">
+                  <label for="goto-pan-input" class="font-label-code text-label-code text-on-surface-variant uppercase">TARGET PAN (0°–360° or −180…+180)</label>
+                  <span class="font-label-telemetry-sm text-label-telemetry-sm text-primary font-bold">PAN</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input class="w-full bg-surface-container-high px-space-sm py-1.5 rounded font-label-telemetry-md text-label-telemetry-md text-primary focus:outline-none focus:ring-1 focus:ring-primary shadow-inner" id="goto-pan-input" max="360" min="-180" step="0.01" type="number" placeholder="0.00" />
+                  <span class="font-label-code text-label-code text-on-surface-variant">DEG</span>
+                </div>
+              </div>
+              <div class="bg-surface-container-lowest p-space-sm rounded border border-outline-variant/30">
+                <div class="flex justify-between items-center mb-1">
+                  <label for="goto-tilt-input" class="font-label-code text-label-code text-on-surface-variant uppercase">TARGET TILT (−50° DOWN … 0° LEVEL … +50° UP)</label>
+                  <span class="font-label-telemetry-sm text-label-telemetry-sm text-secondary font-bold">TILT</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input class="w-full bg-surface-container-high px-space-sm py-1.5 rounded font-label-telemetry-md text-label-telemetry-md text-secondary focus:outline-none focus:ring-1 focus:ring-secondary shadow-inner" id="goto-tilt-input" max="50" min="-50" step="0.01" type="number" placeholder="0.00" />
+                  <span class="font-label-code text-label-code text-on-surface-variant">DEG</span>
+                </div>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2 pt-space-xs">
+              <div class="flex items-center gap-space-sm">
+                <button type="button" id="goto-btn" data-action="goto" class="flex-1 bg-primary text-on-primary hover:bg-primary-fixed-dim font-label-telemetry-sm text-label-telemetry-sm uppercase font-bold py-2 rounded shadow-lg transition-all flex items-center justify-center gap-1 cursor-pointer">
+                  <span class="material-symbols-outlined text-[18px]">fast_forward</span>
+                  GO TO
+                </button>
+                <button type="button" id="read-live-btn" data-action="read-live" title="Copy live pan/tilt into the input fields" class="bg-surface-container-highest hover:bg-surface-bright text-on-surface font-label-code text-label-code uppercase py-2 px-3 rounded shadow transition-all flex items-center justify-center gap-1 cursor-pointer">
+                  <span class="material-symbols-outlined text-[16px]">sync</span>
+                  READ LIVE
+                </button>
+              </div>
+              <button type="button" id="halt-btn" data-action="halt" title="Emergency stop" class="w-full group bg-error-container hover:bg-error active:scale-[0.98] text-on-error py-2.5 rounded shadow-[0_0_20px_rgba(255,59,0,0.4)] flex items-center justify-center gap-2 cursor-pointer transition-all border border-error/50">
+                <span class="material-symbols-outlined text-[20px] text-white">pan_tool</span>
+                <span class="font-label-code text-label-code font-extrabold tracking-widest text-white uppercase">EMERGENCY STOP (HALT)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====== PRESETS ====== -->
+      <section id="sec-presets" class="bg-surface-container-low rounded-xl p-space-md shadow-xl">
+        <div class="flex items-center justify-between pb-space-sm mb-space-sm bg-surface-container-lowest/40 px-space-sm py-space-xs rounded">
+          <div class="flex items-center gap-space-xs">
+            <span class="material-symbols-outlined text-secondary text-[18px]">grid_view</span>
+            <span class="font-headline-sm text-headline-sm text-secondary uppercase tracking-wide">3×3 Preset Matrix</span>
+          </div>
+          <span class="font-label-code text-label-code text-on-surface-variant uppercase">A@0° · B@120° · C@240° × LOW · LEVEL · HIGH — SET/CLR HERE · WIDGET = QUICK CALL</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm" id="preset-grid">
+          <div class="preset-card bg-surface-container p-space-sm rounded-lg shadow-sm transition-all flex flex-col justify-between" id="preset-1" data-preset="1">
+            <div class="flex justify-between items-start mb-1">
+              <div class="flex items-center gap-1">
+                <span class="font-label-code text-label-code bg-surface-container-lowest text-primary px-1.5 py-0.5 rounded font-bold">#01</span>
+                <span class="font-label-telemetry-sm text-label-telemetry-sm text-on-surface font-semibold" id="preset-1-label">Sector A Low</span>
+              </div>
+              <span class="dot" id="preset-1-dot" data-state="off"></span>
+            </div>
+            <div class="font-label-code text-label-code text-on-surface-variant my-1">
+              PAN: <span class="text-primary font-bold" id="preset-1-pan">—</span> | TILT: <span class="text-secondary font-bold" id="preset-1-tilt">—</span>
+            </div>
+            <div class="flex gap-1 mt-2">
+              <button type="button" id="preset-1-call" data-action="preset-call" data-preset="1" class="flex-1 bg-surface-container-high hover:bg-primary hover:text-on-primary text-primary font-label-code text-label-code py-1 rounded transition-colors uppercase font-bold">CALL</button>
+              <button type="button" id="preset-1-set" data-action="preset-set" data-preset="1" title="Store current position in preset 1" class="px-2 bg-surface-container-lowest hover:bg-surface-container-highest text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">SET</button>
+              <button type="button" id="preset-1-clear" data-action="preset-clear" data-preset="1" title="Clear preset 1" class="px-2 bg-surface-container-lowest hover:bg-error hover:text-on-error text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">CLR</button>
+            </div>
+          </div>
+          <div class="preset-card bg-surface-container p-space-sm rounded-lg shadow-sm transition-all flex flex-col justify-between" id="preset-2" data-preset="2">
+            <div class="flex justify-between items-start mb-1">
+              <div class="flex items-center gap-1">
+                <span class="font-label-code text-label-code bg-surface-container-lowest text-primary px-1.5 py-0.5 rounded font-bold">#02</span>
+                <span class="font-label-telemetry-sm text-label-telemetry-sm text-on-surface font-semibold" id="preset-2-label">Sector A Level</span>
+              </div>
+              <span class="dot" id="preset-2-dot" data-state="off"></span>
+            </div>
+            <div class="font-label-code text-label-code text-on-surface-variant my-1">
+              PAN: <span class="text-primary font-bold" id="preset-2-pan">—</span> | TILT: <span class="text-secondary font-bold" id="preset-2-tilt">—</span>
+            </div>
+            <div class="flex gap-1 mt-2">
+              <button type="button" id="preset-2-call" data-action="preset-call" data-preset="2" class="flex-1 bg-surface-container-high hover:bg-primary hover:text-on-primary text-primary font-label-code text-label-code py-1 rounded transition-colors uppercase font-bold">CALL</button>
+              <button type="button" id="preset-2-set" data-action="preset-set" data-preset="2" title="Store current position in preset 2" class="px-2 bg-surface-container-lowest hover:bg-surface-container-highest text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">SET</button>
+              <button type="button" id="preset-2-clear" data-action="preset-clear" data-preset="2" title="Clear preset 2" class="px-2 bg-surface-container-lowest hover:bg-error hover:text-on-error text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">CLR</button>
+            </div>
+          </div>
+          <div class="preset-card bg-surface-container p-space-sm rounded-lg shadow-sm transition-all flex flex-col justify-between" id="preset-3" data-preset="3">
+            <div class="flex justify-between items-start mb-1">
+              <div class="flex items-center gap-1">
+                <span class="font-label-code text-label-code bg-surface-container-lowest text-primary px-1.5 py-0.5 rounded font-bold">#03</span>
+                <span class="font-label-telemetry-sm text-label-telemetry-sm text-on-surface font-semibold" id="preset-3-label">Sector A High</span>
+              </div>
+              <span class="dot" id="preset-3-dot" data-state="off"></span>
+            </div>
+            <div class="font-label-code text-label-code text-on-surface-variant my-1">
+              PAN: <span class="text-primary font-bold" id="preset-3-pan">—</span> | TILT: <span class="text-secondary font-bold" id="preset-3-tilt">—</span>
+            </div>
+            <div class="flex gap-1 mt-2">
+              <button type="button" id="preset-3-call" data-action="preset-call" data-preset="3" class="flex-1 bg-surface-container-high hover:bg-primary hover:text-on-primary text-primary font-label-code text-label-code py-1 rounded transition-colors uppercase font-bold">CALL</button>
+              <button type="button" id="preset-3-set" data-action="preset-set" data-preset="3" title="Store current position in preset 3" class="px-2 bg-surface-container-lowest hover:bg-surface-container-highest text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">SET</button>
+              <button type="button" id="preset-3-clear" data-action="preset-clear" data-preset="3" title="Clear preset 3" class="px-2 bg-surface-container-lowest hover:bg-error hover:text-on-error text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">CLR</button>
+            </div>
+          </div>
+          <div class="preset-card bg-surface-container p-space-sm rounded-lg shadow-sm transition-all flex flex-col justify-between" id="preset-4" data-preset="4">
+            <div class="flex justify-between items-start mb-1">
+              <div class="flex items-center gap-1">
+                <span class="font-label-code text-label-code bg-surface-container-lowest text-primary px-1.5 py-0.5 rounded font-bold">#04</span>
+                <span class="font-label-telemetry-sm text-label-telemetry-sm text-on-surface font-semibold" id="preset-4-label">Sector B Low</span>
+              </div>
+              <span class="dot" id="preset-4-dot" data-state="off"></span>
+            </div>
+            <div class="font-label-code text-label-code text-on-surface-variant my-1">
+              PAN: <span class="text-primary font-bold" id="preset-4-pan">—</span> | TILT: <span class="text-secondary font-bold" id="preset-4-tilt">—</span>
+            </div>
+            <div class="flex gap-1 mt-2">
+              <button type="button" id="preset-4-call" data-action="preset-call" data-preset="4" class="flex-1 bg-surface-container-high hover:bg-primary hover:text-on-primary text-primary font-label-code text-label-code py-1 rounded transition-colors uppercase font-bold">CALL</button>
+              <button type="button" id="preset-4-set" data-action="preset-set" data-preset="4" title="Store current position in preset 4" class="px-2 bg-surface-container-lowest hover:bg-surface-container-highest text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">SET</button>
+              <button type="button" id="preset-4-clear" data-action="preset-clear" data-preset="4" title="Clear preset 4" class="px-2 bg-surface-container-lowest hover:bg-error hover:text-on-error text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">CLR</button>
+            </div>
+          </div>
+          <div class="preset-card bg-surface-container p-space-sm rounded-lg shadow-sm transition-all flex flex-col justify-between" id="preset-5" data-preset="5">
+            <div class="flex justify-between items-start mb-1">
+              <div class="flex items-center gap-1">
+                <span class="font-label-code text-label-code bg-surface-container-lowest text-primary px-1.5 py-0.5 rounded font-bold">#05</span>
+                <span class="font-label-telemetry-sm text-label-telemetry-sm text-on-surface font-semibold" id="preset-5-label">Sector B Level</span>
+              </div>
+              <span class="dot" id="preset-5-dot" data-state="off"></span>
+            </div>
+            <div class="font-label-code text-label-code text-on-surface-variant my-1">
+              PAN: <span class="text-primary font-bold" id="preset-5-pan">—</span> | TILT: <span class="text-secondary font-bold" id="preset-5-tilt">—</span>
+            </div>
+            <div class="flex gap-1 mt-2">
+              <button type="button" id="preset-5-call" data-action="preset-call" data-preset="5" class="flex-1 bg-surface-container-high hover:bg-primary hover:text-on-primary text-primary font-label-code text-label-code py-1 rounded transition-colors uppercase font-bold">CALL</button>
+              <button type="button" id="preset-5-set" data-action="preset-set" data-preset="5" title="Store current position in preset 5" class="px-2 bg-surface-container-lowest hover:bg-surface-container-highest text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">SET</button>
+              <button type="button" id="preset-5-clear" data-action="preset-clear" data-preset="5" title="Clear preset 5" class="px-2 bg-surface-container-lowest hover:bg-error hover:text-on-error text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">CLR</button>
+            </div>
+          </div>
+          <div class="preset-card bg-surface-container p-space-sm rounded-lg shadow-sm transition-all flex flex-col justify-between" id="preset-6" data-preset="6">
+            <div class="flex justify-between items-start mb-1">
+              <div class="flex items-center gap-1">
+                <span class="font-label-code text-label-code bg-surface-container-lowest text-primary px-1.5 py-0.5 rounded font-bold">#06</span>
+                <span class="font-label-telemetry-sm text-label-telemetry-sm text-on-surface font-semibold" id="preset-6-label">Sector B High</span>
+              </div>
+              <span class="dot" id="preset-6-dot" data-state="off"></span>
+            </div>
+            <div class="font-label-code text-label-code text-on-surface-variant my-1">
+              PAN: <span class="text-primary font-bold" id="preset-6-pan">—</span> | TILT: <span class="text-secondary font-bold" id="preset-6-tilt">—</span>
+            </div>
+            <div class="flex gap-1 mt-2">
+              <button type="button" id="preset-6-call" data-action="preset-call" data-preset="6" class="flex-1 bg-surface-container-high hover:bg-primary hover:text-on-primary text-primary font-label-code text-label-code py-1 rounded transition-colors uppercase font-bold">CALL</button>
+              <button type="button" id="preset-6-set" data-action="preset-set" data-preset="6" title="Store current position in preset 6" class="px-2 bg-surface-container-lowest hover:bg-surface-container-highest text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">SET</button>
+              <button type="button" id="preset-6-clear" data-action="preset-clear" data-preset="6" title="Clear preset 6" class="px-2 bg-surface-container-lowest hover:bg-error hover:text-on-error text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">CLR</button>
+            </div>
+          </div>
+          <div class="preset-card bg-surface-container p-space-sm rounded-lg shadow-sm transition-all flex flex-col justify-between" id="preset-7" data-preset="7">
+            <div class="flex justify-between items-start mb-1">
+              <div class="flex items-center gap-1">
+                <span class="font-label-code text-label-code bg-surface-container-lowest text-primary px-1.5 py-0.5 rounded font-bold">#07</span>
+                <span class="font-label-telemetry-sm text-label-telemetry-sm text-on-surface font-semibold" id="preset-7-label">Sector C Low</span>
+              </div>
+              <span class="dot" id="preset-7-dot" data-state="off"></span>
+            </div>
+            <div class="font-label-code text-label-code text-on-surface-variant my-1">
+              PAN: <span class="text-primary font-bold" id="preset-7-pan">—</span> | TILT: <span class="text-secondary font-bold" id="preset-7-tilt">—</span>
+            </div>
+            <div class="flex gap-1 mt-2">
+              <button type="button" id="preset-7-call" data-action="preset-call" data-preset="7" class="flex-1 bg-surface-container-high hover:bg-primary hover:text-on-primary text-primary font-label-code text-label-code py-1 rounded transition-colors uppercase font-bold">CALL</button>
+              <button type="button" id="preset-7-set" data-action="preset-set" data-preset="7" title="Store current position in preset 7" class="px-2 bg-surface-container-lowest hover:bg-surface-container-highest text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">SET</button>
+              <button type="button" id="preset-7-clear" data-action="preset-clear" data-preset="7" title="Clear preset 7" class="px-2 bg-surface-container-lowest hover:bg-error hover:text-on-error text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">CLR</button>
+            </div>
+          </div>
+          <div class="preset-card bg-surface-container p-space-sm rounded-lg shadow-sm transition-all flex flex-col justify-between" id="preset-8" data-preset="8">
+            <div class="flex justify-between items-start mb-1">
+              <div class="flex items-center gap-1">
+                <span class="font-label-code text-label-code bg-surface-container-lowest text-primary px-1.5 py-0.5 rounded font-bold">#08</span>
+                <span class="font-label-telemetry-sm text-label-telemetry-sm text-on-surface font-semibold" id="preset-8-label">Sector C Level</span>
+              </div>
+              <span class="dot" id="preset-8-dot" data-state="off"></span>
+            </div>
+            <div class="font-label-code text-label-code text-on-surface-variant my-1">
+              PAN: <span class="text-primary font-bold" id="preset-8-pan">—</span> | TILT: <span class="text-secondary font-bold" id="preset-8-tilt">—</span>
+            </div>
+            <div class="flex gap-1 mt-2">
+              <button type="button" id="preset-8-call" data-action="preset-call" data-preset="8" class="flex-1 bg-surface-container-high hover:bg-primary hover:text-on-primary text-primary font-label-code text-label-code py-1 rounded transition-colors uppercase font-bold">CALL</button>
+              <button type="button" id="preset-8-set" data-action="preset-set" data-preset="8" title="Store current position in preset 8" class="px-2 bg-surface-container-lowest hover:bg-surface-container-highest text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">SET</button>
+              <button type="button" id="preset-8-clear" data-action="preset-clear" data-preset="8" title="Clear preset 8" class="px-2 bg-surface-container-lowest hover:bg-error hover:text-on-error text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">CLR</button>
+            </div>
+          </div>
+          <div class="preset-card bg-surface-container p-space-sm rounded-lg shadow-sm transition-all flex flex-col justify-between" id="preset-9" data-preset="9">
+            <div class="flex justify-between items-start mb-1">
+              <div class="flex items-center gap-1">
+                <span class="font-label-code text-label-code bg-surface-container-lowest text-primary px-1.5 py-0.5 rounded font-bold">#09</span>
+                <span class="font-label-telemetry-sm text-label-telemetry-sm text-on-surface font-semibold" id="preset-9-label">Sector C High</span>
+              </div>
+              <span class="dot" id="preset-9-dot" data-state="off"></span>
+            </div>
+            <div class="font-label-code text-label-code text-on-surface-variant my-1">
+              PAN: <span class="text-primary font-bold" id="preset-9-pan">—</span> | TILT: <span class="text-secondary font-bold" id="preset-9-tilt">—</span>
+            </div>
+            <div class="flex gap-1 mt-2">
+              <button type="button" id="preset-9-call" data-action="preset-call" data-preset="9" class="flex-1 bg-surface-container-high hover:bg-primary hover:text-on-primary text-primary font-label-code text-label-code py-1 rounded transition-colors uppercase font-bold">CALL</button>
+              <button type="button" id="preset-9-set" data-action="preset-set" data-preset="9" title="Store current position in preset 9" class="px-2 bg-surface-container-lowest hover:bg-surface-container-highest text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">SET</button>
+              <button type="button" id="preset-9-clear" data-action="preset-clear" data-preset="9" title="Clear preset 9" class="px-2 bg-surface-container-lowest hover:bg-error hover:text-on-error text-on-surface-variant font-label-code text-label-code py-1 rounded transition-colors uppercase">CLR</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====== WIRE LOG ====== -->
+      <section id="sec-settings" class="bg-surface-container-low rounded-xl p-space-md shadow-xl flex flex-col gap-space-md">
+        <div class="flex items-center justify-between pb-space-sm bg-surface-container-lowest/40 px-space-sm py-space-xs rounded">
+          <div class="flex items-center gap-space-xs">
+            <span class="material-symbols-outlined text-primary text-[18px]">developer_board</span>
+            <span class="font-headline-sm text-headline-sm text-primary uppercase tracking-wide">Link · Drive · Widget</span>
+          </div>
+          <span class="font-label-code text-label-code text-on-surface-variant uppercase" id="settings-sync-chip">SERVER: <span data-bind="settings-sync">NOT SYNCED</span></span>
+        </div>
+
+        <!-- SERIAL -->
+        <div id="sec-serial" class="bg-surface-container p-space-sm rounded-lg shadow-inner">
+          <div class="flex items-center justify-between mb-space-xs">
+            <span class="font-headline-sm text-headline-sm text-primary uppercase">Serial Hardware Link</span>
+            <span class="font-label-code text-label-code bg-surface-container-lowest text-primary px-1.5 py-0.5 rounded">RS-485</span>
+          </div>
+          <div class="grid grid-cols-2 gap-space-sm">
+            <div class="flex flex-col gap-1">
+              <label for="serial-port-select" class="font-label-code text-label-code text-on-surface-variant uppercase">SERIAL PORT</label>
+              <select class="bg-surface-container-highest text-on-surface font-label-telemetry-sm text-label-telemetry-sm p-1.5 rounded focus:outline-none focus:ring-1 focus:ring-primary" id="serial-port-select" data-action="serial-port">
+                <option value="">— refresh to list ports —</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label for="serial-baud-select" class="font-label-code text-label-code text-on-surface-variant uppercase">BAUD RATE</label>
+              <select class="bg-surface-container-highest text-on-surface font-label-telemetry-sm text-label-telemetry-sm p-1.5 rounded focus:outline-none focus:ring-1 focus:ring-primary" id="serial-baud-select" data-action="serial-baud">
+                <option value="2400">2400</option>
+                <option value="4800">4800</option>
+                <option value="9600" selected>9600</option>
+                <option value="19200">19200</option>
+                <option value="38400">38400</option>
+                <option value="57600">57600</option>
+                <option value="115200">115200</option>
+              </select>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label for="serial-framing" class="font-label-code text-label-code text-on-surface-variant uppercase">DATA / PARITY / STOP</label>
+              <input class="bg-surface-container-lowest text-on-surface-variant font-label-code text-label-code p-1.5 rounded cursor-not-allowed" id="serial-framing" readonly type="text" value="8N1 (8 bit, no parity, 1 stop)" />
+            </div>
+            <div class="flex flex-col gap-1">
+              <label for="pelco-address-input" class="font-label-code text-label-code text-on-surface-variant uppercase">PELCO-D ADDRESS (1–255)</label>
+              <input class="bg-surface-container-highest text-primary font-label-telemetry-sm text-label-telemetry-sm p-1.5 rounded focus:outline-none focus:ring-1 focus:ring-primary" id="pelco-address-input" data-action="pelco-address" min="1" max="255" step="1" type="number" value="1" />
+            </div>
+          </div>
+          <div class="flex items-center gap-space-sm mt-space-sm">
+            <button type="button" id="serial-refresh-btn" data-action="serial-refresh" class="bg-surface-container-highest hover:bg-surface-bright text-on-surface font-label-code text-label-code font-bold py-1.5 px-2 rounded transition-all uppercase flex items-center justify-center gap-1" title="Rescan serial ports">
+              <span class="material-symbols-outlined text-[15px]">refresh</span>Ports
+            </button>
+            <button type="button" id="serial-disconnect-btn" data-action="serial-disconnect" class="flex-1 bg-surface-container-highest hover:bg-error hover:text-on-error text-error font-label-code text-label-code font-bold py-1.5 rounded transition-all uppercase flex items-center justify-center gap-1">
+              <span class="material-symbols-outlined text-[15px]">power_settings_new</span>Disconnect
+            </button>
+            <button type="button" id="serial-connect-btn" data-action="serial-connect" class="flex-1 bg-primary text-on-primary hover:bg-primary-fixed-dim font-label-code text-label-code font-bold py-1.5 rounded transition-all uppercase flex items-center justify-center gap-1">
+              <span class="material-symbols-outlined text-[15px]">cable</span>Connect
+            </button>
+          </div>
+        </div>
+
+        <!-- POLLING -->
+        <div id="sec-drive" class="bg-surface-container p-space-sm rounded-lg shadow-inner">
+          <div class="flex items-center justify-between mb-space-xs">
+            <span class="font-headline-sm text-headline-sm text-secondary uppercase">Position Polling</span>
+            <span class="font-label-code text-label-code text-secondary">PELCO-D ANGLE QUERY</span>
+          </div>
+          <div class="flex flex-col gap-space-xs">
+            <div class="flex items-center justify-between font-label-code text-label-code">
+              <span class="text-on-surface-variant uppercase">POLL INTERVAL:</span>
+              <span class="text-primary font-bold font-label-telemetry-sm text-label-telemetry-sm" id="poll-display">120 ms (8.3 Hz)</span>
+            </div>
+            <input class="w-full h-1.5 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" id="poll-slider" data-action="setting" data-setting="approach.pollMs" data-kind="int" max="500" min="50" step="10" type="range" value="120" />
+            <div class="flex items-center justify-between mt-1 bg-surface-container-lowest p-2 rounded">
+              <label class="flex items-center gap-2 cursor-pointer font-label-code text-label-code text-on-surface" for="auto-refresh-check">
+                <input checked class="w-4 h-4 rounded accent-primary bg-surface-container" id="auto-refresh-check" data-action="setting" data-setting="autoRefresh" data-kind="bool" type="checkbox" />
+                Continuous position refresh
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- VELOCITY -->
+        <div class="bg-surface-container p-space-sm rounded-lg shadow-inner">
+          <div class="flex items-center justify-between mb-space-xs">
+            <span class="font-headline-sm text-headline-sm text-primary uppercase">Drive Speed</span>
+            <span class="font-label-code text-label-code text-on-surface-variant">PELCO SPEED (1–63)</span>
+          </div>
+          <div class="grid grid-cols-2 gap-space-sm">
+            <div class="flex flex-col gap-1 bg-surface-container-lowest p-2 rounded">
+              <div class="flex justify-between items-center font-label-code text-label-code">
+                <label for="pan-speed-slider" class="text-on-surface-variant uppercase">PAN SPEED</label>
+                <span class="text-primary font-bold font-label-telemetry-sm text-label-telemetry-sm" id="pan-speed-val">32 / 63</span>
+              </div>
+              <input class="w-full h-1.5 bg-surface-container-highest rounded appearance-none cursor-pointer accent-primary" id="pan-speed-slider" data-action="setting" data-setting="panSpeed" data-kind="int" max="63" min="1" type="range" value="32" />
+            </div>
+            <div class="flex flex-col gap-1 bg-surface-container-lowest p-2 rounded">
+              <div class="flex justify-between items-center font-label-code text-label-code">
+                <label for="tilt-speed-slider" class="text-on-surface-variant uppercase">TILT SPEED</label>
+                <span class="text-secondary font-bold font-label-telemetry-sm text-label-telemetry-sm" id="tilt-speed-val">24 / 63</span>
+              </div>
+              <input class="w-full h-1.5 bg-surface-container-highest rounded appearance-none cursor-pointer accent-secondary" id="tilt-speed-slider" data-action="setting" data-setting="tiltSpeed" data-kind="int" max="63" min="1" type="range" value="24" />
+            </div>
+          </div>
+        </div>
+
+        <!-- LANDING RESOLUTION + APPROACH RAMP -->
+        <div class="bg-surface-container p-space-sm rounded-lg shadow-inner">
+          <div class="flex items-center justify-between mb-space-xs">
+            <span class="font-headline-sm text-headline-sm text-secondary uppercase">Landing Resolution</span>
+            <span class="font-label-code text-label-code text-secondary">INSIDE BAND = DONE · HOME ±1.5°</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5 mb-space-sm" id="landing-res-group" role="group" aria-label="Goto landing resolution">
+            <button type="button" id="land-res-05" data-action="landing-res" data-deg="0.5" class="land-res-btn py-1.5 rounded font-label-telemetry-sm text-[11px] bg-surface-container-lowest text-on-surface-variant hover:text-on-surface transition-all" aria-pressed="false">0.5°</button>
+            <button type="button" id="land-res-1" data-action="landing-res" data-deg="1" class="land-res-btn py-1.5 rounded font-label-telemetry-sm text-[11px] bg-primary-container text-on-primary-container font-semibold transition-all" aria-pressed="true">1°</button>
+            <button type="button" id="land-res-2" data-action="landing-res" data-deg="2" class="land-res-btn py-1.5 rounded font-label-telemetry-sm text-[11px] bg-surface-container-lowest text-on-surface-variant hover:text-on-surface transition-all" aria-pressed="false">2°</button>
+          </div>
+          <div class="flex items-center justify-between mb-space-xs">
+            <span class="font-headline-sm text-headline-sm text-primary uppercase">Approach Ramp</span>
+            <span class="font-label-code text-label-code text-on-surface-variant">FAST → SLOW NEAR TARGET</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 font-label-code text-label-code">
+            <label class="bg-surface-container-lowest p-1.5 rounded flex flex-col items-center gap-0.5">
+              <span class="text-on-surface-variant">FAST SPD</span>
+              <input class="w-full bg-surface-container-high text-primary font-bold text-center rounded py-0.5 focus:outline-none focus:ring-1 focus:ring-primary" id="approach-fast-input" data-action="setting" data-setting="approach.speedFast" data-kind="int" type="number" min="1" max="63" step="1" value="48" />
+            </label>
+            <label class="bg-surface-container-lowest p-1.5 rounded flex flex-col items-center gap-0.5">
+              <span class="text-on-surface-variant">SLOW SPD</span>
+              <input class="w-full bg-surface-container-high text-secondary font-bold text-center rounded py-0.5 focus:outline-none focus:ring-1 focus:ring-secondary" id="approach-slow-input" data-action="setting" data-setting="approach.speedSlow" data-kind="int" type="number" min="1" max="63" step="1" value="8" />
+            </label>
+            <label class="bg-surface-container-lowest p-1.5 rounded flex flex-col items-center gap-0.5">
+              <span class="text-on-surface-variant">RAMP °</span>
+              <input class="w-full bg-surface-container-high text-on-surface font-bold text-center rounded py-0.5 focus:outline-none focus:ring-1 focus:ring-primary" id="approach-ramp-input" data-action="setting" data-setting="approach.rampDistance" data-kind="float" type="number" min="0" max="90" step="0.5" value="15" />
+            </label>
+          </div>
+          <input type="hidden" id="approach-deadband-input" data-setting="approach.deadband" data-kind="float" value="1" />
+        </div>
+
+        <!-- SOFT LIMITS -->
+        <div class="bg-surface-container p-space-sm rounded-lg shadow-inner">
+          <div class="flex items-center justify-between mb-space-xs">
+            <span class="font-headline-sm text-headline-sm text-primary uppercase">Soft Limits</span>
+            <label class="flex items-center gap-1.5 cursor-pointer font-label-code text-label-code text-on-surface-variant uppercase" for="limits-enabled-check">
+              <input class="w-4 h-4 rounded accent-primary bg-surface-container" id="limits-enabled-check" data-action="setting" data-setting="limits.enabled" data-kind="bool" type="checkbox" />
+              Enforce
+            </label>
+          </div>
+          <div class="grid grid-cols-2 gap-space-xs font-label-code text-label-code">
+            <label class="bg-surface-container-lowest px-space-sm py-1.5 rounded flex items-center justify-between gap-2">
+              <span class="text-on-surface-variant uppercase">PAN MIN</span>
+              <input class="w-20 bg-surface-container-high text-primary font-bold text-right rounded px-1 py-0.5" id="limit-pan-min" data-action="setting" data-setting="limits.panMin" data-kind="float" type="number" step="0.5" value="-180" />
+            </label>
+            <label class="bg-surface-container-lowest px-space-sm py-1.5 rounded flex items-center justify-between gap-2">
+              <span class="text-on-surface-variant uppercase">PAN MAX</span>
+              <input class="w-20 bg-surface-container-high text-primary font-bold text-right rounded px-1 py-0.5" id="limit-pan-max" data-action="setting" data-setting="limits.panMax" data-kind="float" type="number" step="0.5" value="180" />
+            </label>
+            <label class="bg-surface-container-lowest px-space-sm py-1.5 rounded flex items-center justify-between gap-2">
+              <span class="text-on-surface-variant uppercase">TILT MIN</span>
+              <input class="w-20 bg-surface-container-high text-secondary font-bold text-right rounded px-1 py-0.5" id="limit-tilt-min" data-action="setting" data-setting="limits.tiltMin" data-kind="float" type="number" step="0.5" value="-50" readonly title="Hardcoded −50°" />
+            </label>
+            <label class="bg-surface-container-lowest px-space-sm py-1.5 rounded flex items-center justify-between gap-2">
+              <span class="text-on-surface-variant uppercase">TILT MAX</span>
+              <input class="w-20 bg-surface-container-high text-secondary font-bold text-right rounded px-1 py-0.5" id="limit-tilt-max" data-action="setting" data-setting="limits.tiltMax" data-kind="float" type="number" step="0.5" value="50" readonly title="Hardcoded +50°" />
+            </label>
+          </div>
+        </div>
+
+        <!-- WIDGET -->
+        <div id="sec-widget" class="bg-surface-container p-space-sm rounded-lg shadow-inner">
+          <div class="flex items-center justify-between mb-space-xs">
+            <span class="font-headline-sm text-headline-sm text-secondary uppercase">Floating Widget</span>
+            <button type="button" id="open-widget-btn" data-action="open-widget" class="flex items-center gap-1 bg-surface-container-lowest hover:bg-surface-container-high text-secondary font-label-code text-label-code uppercase font-bold px-2 py-0.5 rounded">
+              <span class="material-symbols-outlined text-[14px]">open_in_new</span>Open
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-space-sm font-label-code text-label-code">
+            <label class="flex items-center gap-2 bg-surface-container-lowest p-2 rounded cursor-pointer">
+              <input checked class="w-4 h-4 rounded accent-primary bg-surface-container" id="widget-visible-check" data-action="widget-visible" type="checkbox" />
+              <span class="text-on-surface">Enable floating widget</span>
+            </label>
+            <label class="flex items-center gap-2 bg-surface-container-lowest p-2 rounded cursor-pointer">
+              <input checked class="w-4 h-4 rounded accent-primary bg-surface-container" id="widget-pin-check" data-action="widget-pin" type="checkbox" />
+              <span class="text-on-surface">Pin always on top</span>
+            </label>
+            <label class="flex items-center gap-2 bg-surface-container-lowest p-2 rounded cursor-pointer col-span-2">
+              <input checked class="w-4 h-4 rounded accent-primary bg-surface-container" id="widget-autodock-check" data-action="widget-autodock" type="checkbox" />
+              <span class="text-on-surface">Auto-dock bottom-right</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- UNIT INFO -->
+        <div id="sec-unit" class="bg-surface-container-lowest p-space-md rounded-lg shadow-lg relative overflow-hidden">
+          <div class="flex items-start justify-between gap-space-sm">
+            <div class="flex items-center gap-space-sm">
+              <div class="w-8 h-8 rounded bg-secondary-container/20 flex items-center justify-center">
+                <span class="material-symbols-outlined text-secondary text-[20px]">military_tech</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="font-headline-sm text-headline-sm text-secondary font-bold uppercase leading-none">DEVELOPED BY 26 SIG BN R&amp;D WING</span>
+                <span class="font-label-code text-label-code text-on-surface-variant uppercase mt-1">SERVO &amp; PAN-TILT PLATFORM SYSTEMS</span>
+              </div>
+            </div>
+            <span class="font-label-code text-label-code text-primary bg-surface-container px-2 py-0.5 rounded font-bold" data-bind="app-version">v0.0.0</span>
+          </div>
+
+          <p class="mt-space-sm font-label-telemetry-sm text-label-telemetry-sm text-on-surface" id="unit-contact">For Development Contact 26 Sig Bn R&amp;D Wing</p>
+
+          <div class="mt-space-sm grid grid-cols-2 gap-space-xs font-label-code text-label-code">
+            <div class="text-on-surface-variant">PRODUCT: <span class="text-on-surface font-semibold">SPECTRE</span></div>
+            <div class="text-on-surface-variant">TYPE: <span class="text-on-surface font-semibold">PAN-TILT PEDESTAL CONTROLLER</span></div>
+            <div class="text-on-surface-variant">PROTOCOL: <span class="text-primary font-semibold">PELCO-D</span></div>
+            <div class="text-on-surface-variant">TRANSPORT: <span class="text-on-surface font-semibold">SERIAL RS-485</span></div>
+          </div>
+
+          <!-- URLs -->
+          <div class="mt-space-md flex flex-col gap-space-xs" id="unit-urls">
+            <div class="flex items-center justify-between gap-space-sm">
+              <span class="font-label-code text-label-code text-on-surface-variant uppercase">Local server</span>
+              <button type="button" id="unit-endpoint-chip" class="endpoint-chip" data-endpoint-chip>
+                <span class="material-symbols-outlined">lan</span>
+                <span data-endpoint-text>LOCAL http://127.0.0.1:9000</span>
+                <span class="material-symbols-outlined">content_copy</span>
+              </button>
+            </div>
+            <div class="flex items-center justify-between gap-space-sm">
+              <span class="font-label-code text-label-code text-on-surface-variant uppercase">WebSocket</span>
+              <button type="button" id="unit-url-ws" class="endpoint-chip" data-copy="ws://127.0.0.1:9000/ws"><span data-url="ws">ws://127.0.0.1:9000/ws</span><span class="material-symbols-outlined">content_copy</span></button>
+            </div>
+            <div class="flex items-center justify-between gap-space-sm">
+              <span class="font-label-code text-label-code text-on-surface-variant uppercase">Console</span>
+              <button type="button" id="unit-url-console" class="endpoint-chip" data-copy="http://127.0.0.1:9000/"><span data-url="console">http://127.0.0.1:9000/</span><span class="material-symbols-outlined">content_copy</span></button>
+            </div>
+            <div class="flex items-center justify-between gap-space-sm">
+              <span class="font-label-code text-label-code text-on-surface-variant uppercase">Widget</span>
+              <button type="button" id="unit-url-widget" class="endpoint-chip" data-copy="http://127.0.0.1:9000/widget.html"><span data-url="widget">http://127.0.0.1:9000/widget.html</span><span class="material-symbols-outlined">content_copy</span></button>
+            </div>
+          </div>
+
+          <!-- Self-test placeholder -->
+          <div class="mt-space-md pt-space-sm border-t border-outline-variant/30" id="selftest-panel">
+            <div class="flex items-center justify-between gap-space-sm">
+              <div class="flex flex-col">
+                <span class="font-label-code text-label-code text-on-surface-variant uppercase">Self-Test</span>
+                <span class="font-label-telemetry-sm text-label-telemetry-sm text-secondary" id="selftest-status">NOT RUN</span>
+              </div>
+              <button type="button" id="selftest-btn" data-action="selftest" class="bg-surface-container hover:bg-secondary-container hover:text-on-secondary-container text-secondary font-label-code text-label-code px-3 py-1.5 rounded transition-all uppercase font-bold flex items-center gap-1 shadow">
+                <span class="material-symbols-outlined text-[16px]">fact_check</span>
+                RUN SELF-TEST
+              </button>
+            </div>
+            <ul id="selftest-results" class="mt-space-xs font-label-code text-label-code text-on-surface-variant select-text"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- WIRE LOG -->
+      <section id="sec-diag" class="bg-surface-container-low rounded-xl p-space-md shadow-xl">
+        <div class="flex items-center justify-between pb-space-sm mb-space-sm bg-surface-container-lowest/40 px-space-sm py-space-xs rounded">
+          <div class="flex items-center gap-space-xs">
+            <span class="material-symbols-outlined text-primary text-[18px]">terminal</span>
+            <span class="font-headline-sm text-headline-sm text-primary uppercase tracking-wide">Server Wire Log</span>
+          </div>
+          <button type="button" id="log-clear-btn" data-action="log-clear" class="bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-label-code text-label-code px-2 py-0.5 rounded uppercase">Clear</button>
+        </div>
+        <div id="wire-log" class="h-36 overflow-auto bg-surface-container-lowest rounded p-space-sm font-label-code text-[10px] leading-4 text-on-surface-variant select-text" aria-live="off"></div>
+      </section>
+
+  </div>
+</div>
+</main>
+
+</body>
+</html>

@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "PelcoPT Overlay",
+  "version": "1.0.0",
+  "description": "Floating Pelco-D pan/tilt preset widget over any website. Use with the PelcoPT desktop app for serial control.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "action": {
+    "default_title": "Toggle PelcoPT overlay",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["widget.css"],
+      "matches": ["http://*/*", "https://*/*"]
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+[Unit]
+Description=SPECTRE pan/tilt local web service (Developed by 26 Sig Bn R&D Wing)
+Documentation=http://127.0.0.1:9000/
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/spectre
+Environment=SPECTRE_WEB_DIR=/opt/spectre/web/dist
+ExecStart=/opt/spectre/spectre.sh
+Restart=on-failure
+RestartSec=3
+# Serial adapters are typically group dialout
+SupplementaryGroups=dialout
+
+[Install]
+WantedBy=multi-user.target

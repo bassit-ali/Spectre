@@ -1,0 +1,285 @@
+﻿<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SPECTRE — PAN-TILT PEDESTAL CONTROLLER · Widget</title>
+  <script type="module" src="/src/widget.ts"></script>
+</head>
+<body class="bg-background text-on-surface font-body-md text-body-md antialiased selection:bg-primary-container selection:text-on-primary-container select-none overflow-hidden">
+<main class="relative w-full flex items-start justify-center p-1.5 overflow-hidden">
+
+<!-- ===================================================================== -->
+<!-- FLOATING WIDGET                                                        -->
+<!-- ===================================================================== -->
+<aside id="spectre-widget" class="z-50 w-full max-w-[24rem] flex flex-col bg-surface/90 backdrop-blur-2xl rounded-xl shadow-[0_12px_40px_rgba(0,0,0,0.85),0_0_20px_rgba(0,240,255,0.22)] transition-all duration-200 relative overflow-hidden">
+  <!-- Corner reticles -->
+  <div class="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-primary-container pointer-events-none"></div>
+  <div class="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-primary-container pointer-events-none"></div>
+  <div class="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-primary-container pointer-events-none"></div>
+  <div class="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-primary-container pointer-events-none"></div>
+
+  <!-- HEADER (drag handle in frameless hosts) — pin lives here -->
+  <div id="widget-header" class="drag-region flex items-center justify-between px-space-md py-space-sm bg-surface-container-low/95 rounded-t-xl cursor-move">
+    <div class="flex items-center gap-space-xs min-w-0">
+      <div class="w-6 h-6 bg-surface-container flex items-center justify-center rounded shrink-0">
+        <span class="material-symbols-outlined text-primary-container text-[16px]">radar</span>
+      </div>
+      <div class="flex flex-col min-w-0">
+        <div class="flex items-center gap-1.5">
+          <button type="button" id="product-name" data-action="open-console"
+            title="Open SPECTRE console in browser"
+            class="no-drag font-headline-sm text-headline-sm uppercase tracking-wider text-primary font-bold leading-none hover:underline hover:text-primary-fixed cursor-pointer bg-transparent border-0 p-0">
+            SPECTRE
+          </button>
+          <span class="dot" data-dot="link"></span>
+          <span class="px-1 bg-surface-container text-error font-label-code text-[9px] rounded truncate max-w-[11rem]" id="widget-link-chip" data-bind="link-port" title="RS-485 not connected — overlay stays open">NO DEVICE CONNECTED</span>
+        </div>
+        <span class="font-label-code text-[9px] text-outline tracking-wider leading-none mt-1 truncate" id="product-subtitle">PAN-TILT PEDESTAL CONTROLLER</span>
+      </div>
+    </div>
+    <div class="no-drag flex items-center gap-1 shrink-0">
+      <button type="button" id="widget-pin-btn" data-action="widget-pin" aria-pressed="true" title="Pin always on top" class="w-6 h-6 flex items-center justify-center rounded bg-surface-container text-primary-fixed-dim hover:text-primary hover:bg-surface-container-high transition-colors">
+        <span class="material-symbols-outlined text-[15px] fill" id="widget-pin-icon">push_pin</span>
+      </button>
+      <button type="button" class="w-6 h-6 flex items-center justify-center rounded bg-surface-container text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors" id="widget-minimize-btn" data-action="widget-minimize" title="Minimize (collapse downward)" aria-expanded="true">
+        <span class="material-symbols-outlined text-[15px]" id="widget-minimize-icon">expand_less</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Offline strip — visible when RS-485 is down; widget still stays open -->
+  <div id="widget-offline-banner" class="no-drag px-space-md py-1 bg-error-container/90 text-center" role="status" aria-live="polite">
+    <span class="font-label-code text-[9px] font-bold tracking-wider uppercase text-on-error-container">No device connected · RS-485 offline</span>
+  </div>
+
+  <!-- BODY -->
+  <div class="flex flex-col gap-space-sm p-space-md" id="widget-body">
+
+    <!-- Live telemetry -->
+    <div class="grid grid-cols-2 gap-space-xs p-space-xs bg-surface-container-lowest rounded">
+      <div class="flex flex-col p-space-xs bg-surface-container-low rounded">
+        <div class="flex justify-between items-center text-outline font-label-code text-label-code">
+          <span>PAN</span>
+          <span class="text-primary-fixed-dim" data-bind="pan-short">—</span>
+        </div>
+        <div class="flex items-baseline justify-between mt-0.5">
+          <span class="font-label-telemetry-lg text-label-telemetry-lg text-primary tracking-tight" id="widget-pan-val" data-bind="pan">—°</span>
+          <span class="font-label-code text-[10px] text-outline">RAW <span data-bind="pan-raw">0x----</span></span>
+        </div>
+        <div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden mt-1">
+          <div class="bg-primary-container h-full transition-all duration-150" data-bar="pan" style="width: 0%"></div>
+        </div>
+      </div>
+      <div class="flex flex-col p-space-xs bg-surface-container-low rounded">
+        <div class="flex justify-between items-center text-outline font-label-code text-label-code">
+          <span>TILT</span>
+          <span class="text-secondary-fixed-dim">±50°</span>
+        </div>
+        <div class="flex items-baseline justify-between mt-0.5">
+          <span class="font-label-telemetry-lg text-label-telemetry-lg text-secondary tracking-tight" id="widget-tilt-val" data-bind="tilt">—°</span>
+          <span class="font-label-code text-[10px] text-outline">RAW <span data-bind="tilt-raw">0x----</span></span>
+        </div>
+        <div class="w-full bg-surface-container-highest h-1 rounded-full overflow-hidden mt-1">
+          <div class="bg-secondary-container h-full transition-all duration-150" data-bar="tilt" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vector controller -->
+    <div class="grid grid-cols-12 gap-space-sm items-center bg-surface-container-low/80 p-space-xs rounded border border-outline-variant/40">
+      <div class="col-span-7 flex flex-col items-center gap-1">
+        <div class="flex items-center justify-between w-full px-1">
+          <span class="font-label-code text-[9px] text-primary-fixed uppercase tracking-wider font-semibold flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse"></span>2D PAN
+          </span>
+          <!-- HOME / STORAGE / OFF: pan 0° / tilt flat 0° -->
+          <button type="button" id="widget-home-btn" data-action="home"
+            title="Home / storage / off — pan 0° · tilt flat 0°" aria-label="Home storage off"
+            class="no-drag w-5 h-5 flex items-center justify-center rounded bg-surface-container text-primary hover:bg-primary-container hover:text-on-primary-container transition-colors">
+            <span class="material-symbols-outlined text-[14px]">home</span>
+          </button>
+        </div>
+
+        <div class="w-full flex items-center justify-center gap-2">
+          <div class="relative w-36 h-36 shrink-0 rounded-full bg-surface-container-lowest border border-outline-variant flex items-center justify-center overflow-visible shadow-[inset_0_2px_10px_rgba(0,0,0,0.9)]">
+            <svg id="dome-sphere-svg" class="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 144 144">
+              <defs>
+                <radialGradient cx="50%" cy="50%" id="dome-grad" r="55%">
+                  <stop offset="0%" stop-color="#123038" stop-opacity="0.85"></stop>
+                  <stop offset="100%" stop-color="#070b10" stop-opacity="0.98"></stop>
+                </radialGradient>
+                <radialGradient cx="50%" cy="50%" id="domeCursorGlow" r="50%">
+                  <stop offset="0%" stop-color="#00f0ff" stop-opacity="1"></stop>
+                  <stop offset="50%" stop-color="#00dbe9" stop-opacity="0.6"></stop>
+                  <stop offset="100%" stop-color="#004f54" stop-opacity="0"></stop>
+                </radialGradient>
+              </defs>
+              <!-- Match console 2D pan disc -->
+              <circle cx="72" cy="72" fill="url(#dome-grad)" r="66" stroke="#3b494b" stroke-width="1.2"></circle>
+              <circle cx="72" cy="72" fill="none" r="66" stroke="#00dbe9" stroke-width="1.2" stroke-opacity="0.45" pointer-events="none"></circle>
+              <circle cx="72" cy="72" fill="none" r="47" stroke="#849495" stroke-opacity="0.35" stroke-width="0.8" stroke-dasharray="2,3" pointer-events="none"></circle>
+              <line stroke="#849495" stroke-opacity="0.4" stroke-width="0.8" x1="72" x2="72" y1="8" y2="136"></line>
+              <line stroke="#849495" stroke-opacity="0.4" stroke-width="0.8" x1="10" x2="134" y1="72" y2="72"></line>
+              <text fill="#dbfcff" font-family="monospace" font-size="6" font-weight="bold" text-anchor="middle" x="72" y="16">0°</text>
+              <text fill="#b9cacb" font-family="monospace" font-size="6" text-anchor="middle" x="128" y="74">90°</text>
+              <text fill="#b9cacb" font-family="monospace" font-size="6" font-weight="bold" text-anchor="middle" x="72" y="138">180°</text>
+              <text fill="#b9cacb" font-family="monospace" font-size="6" text-anchor="middle" x="16" y="74">270°</text>
+              <g id="dome-vector-layer" opacity="0.2" class="pointer-events-none">
+                <line id="dome-beam" stroke="#00dbe9" stroke-width="1.5" x1="72" x2="72" y1="72" y2="72"></line>
+                <circle id="dome-node" cx="72" cy="72" fill="#00f0ff" r="4" stroke="#dbfcff" stroke-width="1.5"></circle>
+                <circle id="dome-ping" class="animate-ping" cx="72" cy="72" fill="none" opacity="0.75" r="7" stroke="#00f0ff" stroke-width="1"></circle>
+              </g>
+              <g id="dome-pan-badges" pointer-events="none" aria-label="Camera sectors A 0 B 120 C 240"></g>
+              <circle id="dome-hit" cx="72" cy="72" r="60" fill="transparent" stroke="none" style="cursor:crosshair; touch-action:none"></circle>
+            </svg>
+            <div class="absolute top-1 left-1 flex flex-col font-label-code text-[7px] text-outline leading-tight pointer-events-none z-[5]">
+              <span>PAN <span data-bind="pan-short">—</span></span>
+              <span class="text-secondary">TILT <span data-bind="tilt-short">—</span></span>
+            </div>
+
+            <button type="button" class="jog-btn absolute left-1 top-1/2 -translate-y-1/2 w-5 h-6 rounded bg-surface-container/90 hover:bg-primary-container hover:text-on-primary-container text-primary flex items-center justify-center transition-all z-10" id="widget-jog-left" data-jog="left" title="Pan − (hold)" aria-label="Pan minus"><span class="material-symbols-outlined text-[13px]">keyboard_arrow_left</span></button>
+            <button type="button" class="jog-btn absolute right-1 top-1/2 -translate-y-1/2 w-5 h-6 rounded bg-surface-container/90 hover:bg-primary-container hover:text-on-primary-container text-primary flex items-center justify-center transition-all z-10" id="widget-jog-right" data-jog="right" title="Pan + (hold)" aria-label="Pan plus"><span class="material-symbols-outlined text-[13px]">keyboard_arrow_right</span></button>
+          </div>
+          <!-- Tilt rail height-matched to the 2D disc -->
+          <div class="tilt-rail tilt-rail--pad">
+            <span class="tilt-rail-cap">+50°</span>
+            <div class="tilt-track">
+              <div class="tilt-level-bar" title="0° LEVEL"></div>
+              <span class="tilt-level-tag">0°</span>
+              <input class="tilt-slider-v" id="widget-tilt-slider" data-action="tilt-slider" max="50" min="-50" step="0.25" type="range" value="0" title="Tilt slider" aria-label="Tilt degrees" />
+            </div>
+            <span class="font-label-code text-[8px] text-secondary font-bold leading-none" id="widget-tilt-slider-label">—°</span>
+            <span class="tilt-rail-cap">−50°</span>
+          </div>
+        </div>
+        <div class="w-full flex items-center justify-center gap-2 mt-0.5">
+          <button type="button" class="jog-btn flex-1 h-6 rounded bg-surface-container hover:bg-primary-container hover:text-on-primary-container text-secondary flex items-center justify-center gap-0.5 font-label-code text-[9px] font-bold" id="widget-jog-down" data-jog="down" title="Tilt down −" aria-label="Tilt down"><span class="material-symbols-outlined text-[14px]">keyboard_arrow_down</span> DOWN</button>
+          <button type="button" class="jog-btn flex-1 h-6 rounded bg-surface-container hover:bg-primary-container hover:text-on-primary-container text-secondary flex items-center justify-center gap-0.5 font-label-code text-[9px] font-bold" id="widget-jog-up" data-jog="up" title="Tilt up +" aria-label="Tilt up">UP <span class="material-symbols-outlined text-[14px]">keyboard_arrow_up</span></button>
+        </div>
+      </div>
+
+      <div class="col-span-5 flex flex-col gap-1.5">
+        <!-- SPEED + LANDING RESOLUTION (pad + tilt rail are primary; no fine bars) -->
+        <div class="flex flex-col gap-0.5 p-1 bg-surface-container-lowest rounded">
+          <div class="flex justify-between items-center font-label-code text-[9px] text-outline">
+            <span>SPEED</span><span class="text-primary-container">MODE</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1">
+            <button type="button" id="rate-creep-btn" data-action="speed-mode" data-mode="creep" class="speed-btn px-1 py-0.5 text-center font-label-telemetry-sm text-[9px] rounded bg-primary-container text-on-primary-container font-semibold transition-all" aria-pressed="true">CREEP</button>
+            <button type="button" id="rate-max-btn" data-action="speed-mode" data-mode="max" class="speed-btn px-1 py-0.5 text-center font-label-telemetry-sm text-[9px] rounded bg-surface-container text-on-surface-variant hover:text-on-surface transition-all" aria-pressed="false">MAX</button>
+          </div>
+          <div class="flex justify-between items-center font-label-code text-[9px] text-outline mt-0.5">
+            <span>LAND</span><span class="text-secondary">° BAND · HOME ±1.5°</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1" id="widget-land-res-group" role="group" aria-label="Goto landing resolution">
+            <button type="button" id="w-land-res-05" data-action="landing-res" data-deg="0.5" class="land-res-btn px-0.5 py-0.5 text-center font-label-telemetry-sm text-[9px] rounded bg-surface-container text-on-surface-variant transition-all" aria-pressed="false">0.5°</button>
+            <button type="button" id="w-land-res-1" data-action="landing-res" data-deg="1" class="land-res-btn px-0.5 py-0.5 text-center font-label-telemetry-sm text-[9px] rounded bg-secondary-container text-on-secondary-container font-semibold transition-all" aria-pressed="true">1°</button>
+            <button type="button" id="w-land-res-2" data-action="landing-res" data-deg="2" class="land-res-btn px-0.5 py-0.5 text-center font-label-telemetry-sm text-[9px] rounded bg-surface-container text-on-surface-variant transition-all" aria-pressed="false">2°</button>
+          </div>
+        </div>
+        <!-- QUICK GOTO -->
+        <div class="flex flex-col gap-0.5 p-1 bg-surface-container-lowest rounded">
+          <div class="flex justify-between items-center text-outline font-label-code text-[9px]">
+            <span>GO TO</span><span class="text-primary-container">PAN/TILT</span>
+          </div>
+          <div class="grid grid-cols-2 gap-1 font-label-code text-[10px]">
+            <input id="widget-goto-pan" class="min-w-0 bg-surface-container text-primary text-center px-0.5 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-primary-container" placeholder="PAN" type="number" min="-180" max="360" step="0.1" />
+            <input id="widget-goto-tilt" class="min-w-0 bg-surface-container text-secondary text-center px-0.5 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-secondary-container" placeholder="TILT" type="number" min="-50" max="50" step="0.1" />
+          </div>
+          <button type="button" id="widget-goto-btn" data-action="goto" class="w-full py-0.5 mt-0.5 bg-surface-container hover:bg-surface-container-high text-primary-fixed uppercase font-label-telemetry-sm text-[9px] rounded transition-colors">GO TO</button>
+        </div>
+      </div>
+
+      <!-- Full-width HALT — high contrast, never merges into the red fill -->
+      <div class="col-span-12">
+        <button type="button" class="widget-halt-btn w-full py-2 rounded-md flex items-center justify-center gap-2 active:scale-[0.98] hover:brightness-110 transition-transform" id="widget-halt-btn" data-action="halt" title="Emergency stop" style="background:#c5221f;color:#ffffff;border:1px solid #ffb4ab;">
+          <span class="material-symbols-outlined text-[18px]" style="color:#ffffff;">pan_tool</span>
+          <span class="font-label-code text-[12px] font-extrabold tracking-widest uppercase leading-none" style="color:#ffffff;">HALT</span>
+          <span class="font-label-code text-[10px] uppercase tracking-wider" style="color:#ffe8e6;">EMERGENCY STOP</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- PRESETS — quick-call only: name + pan/tilt degrees (SET on console) -->
+    <div class="flex flex-col gap-1 p-space-xs bg-surface-container-lowest rounded">
+      <div class="flex items-center justify-between px-1">
+        <span class="font-label-code text-[10px] text-outline uppercase tracking-wider">Quick-Call Presets</span>
+        <span class="font-label-code text-[9px] text-primary-fixed-dim">TAP CARD</span>
+      </div>
+      <div class="grid grid-cols-3 gap-1" id="widget-preset-grid">
+        <button type="button" class="preset-card flex flex-col gap-0.5 p-1 bg-surface-container-low hover:bg-surface-container active:bg-primary-container active:text-on-primary-container rounded text-left transition-all min-h-[2.6rem]" id="w-preset-1" data-action="preset-call" data-preset="1" title="Call Sector A Low">
+          <div class="flex justify-between items-center gap-1">
+            <span class="font-label-code text-[10px] text-primary font-bold truncate" id="w-preset-1-name">Sector A Low</span>
+            <span class="dot" id="w-preset-1-dot" data-state="off"></span>
+          </div>
+          <span class="font-label-telemetry-sm text-[9px] text-on-surface-variant leading-tight" id="w-preset-1-val">—</span>
+        </button>
+        <button type="button" class="preset-card flex flex-col gap-0.5 p-1 bg-surface-container-low hover:bg-surface-container active:bg-primary-container active:text-on-primary-container rounded text-left transition-all min-h-[2.6rem]" id="w-preset-2" data-action="preset-call" data-preset="2" title="Call Sector A Level">
+          <div class="flex justify-between items-center gap-1">
+            <span class="font-label-code text-[10px] text-primary font-bold truncate" id="w-preset-2-name">Sector A Level</span>
+            <span class="dot" id="w-preset-2-dot" data-state="off"></span>
+          </div>
+          <span class="font-label-telemetry-sm text-[9px] text-on-surface-variant leading-tight" id="w-preset-2-val">—</span>
+        </button>
+        <button type="button" class="preset-card flex flex-col gap-0.5 p-1 bg-surface-container-low hover:bg-surface-container active:bg-primary-container active:text-on-primary-container rounded text-left transition-all min-h-[2.6rem]" id="w-preset-3" data-action="preset-call" data-preset="3" title="Call Sector A High">
+          <div class="flex justify-between items-center gap-1">
+            <span class="font-label-code text-[10px] text-primary font-bold truncate" id="w-preset-3-name">Sector A High</span>
+            <span class="dot" id="w-preset-3-dot" data-state="off"></span>
+          </div>
+          <span class="font-label-telemetry-sm text-[9px] text-on-surface-variant leading-tight" id="w-preset-3-val">—</span>
+        </button>
+        <button type="button" class="preset-card flex flex-col gap-0.5 p-1 bg-surface-container-low hover:bg-surface-container active:bg-primary-container active:text-on-primary-container rounded text-left transition-all min-h-[2.6rem]" id="w-preset-4" data-action="preset-call" data-preset="4" title="Call Sector B Low">
+          <div class="flex justify-between items-center gap-1">
+            <span class="font-label-code text-[10px] text-primary font-bold truncate" id="w-preset-4-name">Sector B Low</span>
+            <span class="dot" id="w-preset-4-dot" data-state="off"></span>
+          </div>
+          <span class="font-label-telemetry-sm text-[9px] text-on-surface-variant leading-tight" id="w-preset-4-val">—</span>
+        </button>
+        <button type="button" class="preset-card flex flex-col gap-0.5 p-1 bg-surface-container-low hover:bg-surface-container active:bg-primary-container active:text-on-primary-container rounded text-left transition-all min-h-[2.6rem]" id="w-preset-5" data-action="preset-call" data-preset="5" title="Call Sector B Level">
+          <div class="flex justify-between items-center gap-1">
+            <span class="font-label-code text-[10px] text-primary font-bold truncate" id="w-preset-5-name">Sector B Level</span>
+            <span class="dot" id="w-preset-5-dot" data-state="off"></span>
+          </div>
+          <span class="font-label-telemetry-sm text-[9px] text-on-surface-variant leading-tight" id="w-preset-5-val">—</span>
+        </button>
+        <button type="button" class="preset-card flex flex-col gap-0.5 p-1 bg-surface-container-low hover:bg-surface-container active:bg-primary-container active:text-on-primary-container rounded text-left transition-all min-h-[2.6rem]" id="w-preset-6" data-action="preset-call" data-preset="6" title="Call Sector B High">
+          <div class="flex justify-between items-center gap-1">
+            <span class="font-label-code text-[10px] text-primary font-bold truncate" id="w-preset-6-name">Sector B High</span>
+            <span class="dot" id="w-preset-6-dot" data-state="off"></span>
+          </div>
+          <span class="font-label-telemetry-sm text-[9px] text-on-surface-variant leading-tight" id="w-preset-6-val">—</span>
+        </button>
+        <button type="button" class="preset-card flex flex-col gap-0.5 p-1 bg-surface-container-low hover:bg-surface-container active:bg-primary-container active:text-on-primary-container rounded text-left transition-all min-h-[2.6rem]" id="w-preset-7" data-action="preset-call" data-preset="7" title="Call Sector C Low">
+          <div class="flex justify-between items-center gap-1">
+            <span class="font-label-code text-[10px] text-primary font-bold truncate" id="w-preset-7-name">Sector C Low</span>
+            <span class="dot" id="w-preset-7-dot" data-state="off"></span>
+          </div>
+          <span class="font-label-telemetry-sm text-[9px] text-on-surface-variant leading-tight" id="w-preset-7-val">—</span>
+        </button>
+        <button type="button" class="preset-card flex flex-col gap-0.5 p-1 bg-surface-container-low hover:bg-surface-container active:bg-primary-container active:text-on-primary-container rounded text-left transition-all min-h-[2.6rem]" id="w-preset-8" data-action="preset-call" data-preset="8" title="Call Sector C Level">
+          <div class="flex justify-between items-center gap-1">
+            <span class="font-label-code text-[10px] text-primary font-bold truncate" id="w-preset-8-name">Sector C Level</span>
+            <span class="dot" id="w-preset-8-dot" data-state="off"></span>
+          </div>
+          <span class="font-label-telemetry-sm text-[9px] text-on-surface-variant leading-tight" id="w-preset-8-val">—</span>
+        </button>
+        <button type="button" class="preset-card flex flex-col gap-0.5 p-1 bg-surface-container-low hover:bg-surface-container active:bg-primary-container active:text-on-primary-container rounded text-left transition-all min-h-[2.6rem]" id="w-preset-9" data-action="preset-call" data-preset="9" title="Call Sector C High">
+          <div class="flex justify-between items-center gap-1">
+            <span class="font-label-code text-[10px] text-primary font-bold truncate" id="w-preset-9-name">Sector C High</span>
+            <span class="dot" id="w-preset-9-dot" data-state="off"></span>
+          </div>
+          <span class="font-label-telemetry-sm text-[9px] text-on-surface-variant leading-tight" id="w-preset-9-val">—</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER — credit only (pin is in heading; no IP / opacity) -->
+  <div class="px-space-md py-1.5 bg-surface-container-lowest/90 rounded-b-xl" id="widget-footer">
+    <div class="text-center font-label-code text-[8px] text-outline uppercase tracking-widest">DEVELOPED BY 26 SIG BN R&amp;D WING</div>
+  </div>
+</aside>
+</main>
+</body>
+</html>
