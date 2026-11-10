@@ -8,7 +8,6 @@ Local web console + always-on-top desktop widget, closed-loop encoder landing, s
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20Pi-111111?style=flat-square)](https://github.com/bassit-ali/Spectre/releases)
 [![Protocol](https://img.shields.io/badge/bus-RS--485%20Pelco--D-0ea5e9?style=flat-square)](#what-spectre-does)
-[![Org](https://img.shields.io/badge/26%20Sig%20Bn-R%26D%20Wing-b45309?style=flat-square)](#credits)
 
 | | |
 |---|---|
@@ -18,73 +17,31 @@ Local web console + always-on-top desktop widget, closed-loop encoder landing, s
 | **Console** | http://127.0.0.1:9000/ |
 | **Widget** | http://127.0.0.1:9000/widget.html |
 | **WebSocket** | `ws://127.0.0.1:9000/ws` |
-| **Developed by** | **26 Sig Bn R&D Wing** |
 | **License** | MIT |
-
-<p align="center">
-  <img src="docs/screenshots/console.png" alt="SPECTRE web console — 2D pan pad and tilt rail" width="920" />
-</p>
-<p align="center"><em>Web console — 2D pan pad, ±50° tilt rail, goto / halt, live link status</em></p>
 
 ---
 
 ## Table of contents
 
-1. [Screenshots](#screenshots)
-2. [What SPECTRE does](#what-spectre-does)
-3. [Features (v1.1.0)](#features-v110)
-4. [Architecture](#architecture)
-5. [Requirements](#requirements)
-6. [Download / install — Windows](#download--install--windows)
-7. [Download / install — Linux / Raspberry Pi](#download--install--linux--raspberry-pi)
-8. [First run — connect the head](#first-run--connect-the-head)
-9. [Web console guide](#web-console-guide)
-10. [Floating widget guide](#floating-widget-guide)
-11. [Sector presets](#sector-presets)
-12. [Motion, home & soft limits](#motion-home--soft-limits)
-13. [Configuration](#configuration)
-14. [Safety](#safety)
-15. [Develop from source](#develop-from-source)
-16. [Tests & quality gates](#tests--quality-gates)
-17. [Rebuild release artifacts](#rebuild-release-artifacts)
-18. [Publishing to GitHub](#publishing-to-github)
-19. [Troubleshooting](#troubleshooting)
-20. [Repository layout](#repository-layout)
-21. [Credits](#credits)
-
----
-
-## Screenshots
-
-### Web console — 2D pan pad + tilt rail
-
-![SPECTRE web console](docs/screenshots/console.png)
-
-The main operator surface at `http://127.0.0.1:9000/`:
-
-- Circular **2D pan pad** with sector badges **A@0° · B@120° · C@240°**
-- Vertical **tilt rail** hard-limited to **±50°**
-- Tap-step nudges (1° / 5° / 10°), absolute **GO TO**, emergency **HALT**
-- Live COM / WebSocket status in the header ribbon
-
-### Console — 3×3 sector preset matrix
-
-![SPECTRE preset matrix](docs/screenshots/console-presets.png)
-
-Nine named presets (Sector A/B/C × Low / Level / High) with **CALL · SET · CLR**. The widget uses the same slots as one-tap quick-call tiles.
-
-### Floating widget (desktop overlay)
-
-<p align="center">
-  <img src="docs/screenshots/widget.png" alt="SPECTRE floating widget overlay" width="420" />
-</p>
-
-Compact always-on-top HUD (`/widget.html` via Electron **pip-shell**):
-
-- Same pan pad + tilt rail + land band + quick-call presets
-- Opens even when RS-485 is down — shows **NO DEVICE CONNECTED**
-- Header **pin**, minimize (collapses toward the bottom), click **SPECTRE** to open the full console in the browser
-- Credit footer: **26 SIG BN R&D WING**
+1. [What SPECTRE does](#what-spectre-does)
+2. [Features (v1.1.0)](#features-v110)
+3. [Architecture](#architecture)
+4. [Requirements](#requirements)
+5. [Download / install — Windows](#download--install--windows)
+6. [Download / install — Linux / Raspberry Pi](#download--install--linux--raspberry-pi)
+7. [First run — connect the head](#first-run--connect-the-head)
+8. [Web console guide](#web-console-guide)
+9. [Floating widget guide](#floating-widget-guide)
+10. [Sector presets](#sector-presets)
+11. [Motion, home & soft limits](#motion-home--soft-limits)
+12. [Configuration](#configuration)
+13. [Safety](#safety)
+14. [Develop from source](#develop-from-source)
+15. [Tests & quality gates](#tests--quality-gates)
+16. [Rebuild release artifacts](#rebuild-release-artifacts)
+17. [Publishing to GitHub](#publishing-to-github)
+18. [Troubleshooting](#troubleshooting)
+19. [Repository layout](#repository-layout)
 
 ---
 
@@ -147,7 +104,6 @@ Typical field link (configurable):
 | Web UI | `web/` | Console + widget source (Vite) |
 | Overlay | `pip-shell/` | Electron shell for always-on-top widget |
 | Installers | `installers/windows`, `installers/linux` | NSIS / tar + install scripts |
-| Docs shots | `docs/screenshots/` | README images |
 
 ---
 
@@ -473,7 +429,7 @@ What lives in git vs Releases:
 
 | In the repo | On the Release page |
 |-------------|---------------------|
-| Source, README, screenshots, installers scripts | `SPECTRE-Setup.exe` |
+| Source, README, installer scripts | `SPECTRE-Setup.exe` |
 | `docs/`, `LICENSE`, UX tests | Windows portable ZIPs |
 | | Linux `.tar.gz` + install guide PDF |
 
@@ -532,15 +488,10 @@ curl http://127.0.0.1:9000/health
 │   └── common/               ← stage-pip-shell.ps1
 ├── scripts/                  ← regression-ux, regression-full, presets
 ├── docs/
-│   ├── RELEASE.md
-│   └── screenshots/          ← console.png, console-presets.png, widget.png
+│   └── RELEASE.md
 └── release/                  ← build output (gitignored)
 ```
 
 ---
-
-## Credits
-
-**SPECTRE** — Developed by **26 Sig Bn R&D Wing**
 
 MIT License — see [`LICENSE`](LICENSE).

@@ -1,6 +1,4 @@
-# SPECTRE release notes — v1.1.0
-
-**Developed by 26 Sig Bn R&D Wing**
+﻿# SPECTRE release notes — v1.1.0
 
 ## Ship artifacts (build locally — not committed to git)
 
