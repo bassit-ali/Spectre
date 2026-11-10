@@ -68,7 +68,7 @@ if (-not $made) {
   $lines = $safe -split "`r?`n"
   $content = New-Object System.Text.StringBuilder
   [void]$content.AppendLine('BT /F1 10 Tf 50 820 Td 14 TL (SPECTRE Linux Install Guide) Tj T*')
-  [void]$content.AppendLine('0 -6 Td 10 TL (Developed by 26 Sig Bn R&D Wing) Tj T* 0 -10 Td')
+  [void]$content.AppendLine('0 -10 Td')
   $count = 0
   foreach ($line in $lines) {
     if ($count -gt 90) { break }

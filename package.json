@@ -1,9 +1,9 @@
 {
   "name": "pelco-pt",
   "version": "1.1.0",
-  "description": "SPECTRE — Pelco-D pan/tilt pedestal controller (local web console + Electron overlay). Developed by 26 Sig Bn R&D Wing.",
+  "description": "SPECTRE — Pelco-D pan/tilt pedestal controller (local web console + Electron overlay).",
   "main": "server/dist/src/index.js",
-  "author": "26 Sig Bn R&D Wing",
+  "author": "bassit-ali",
   "license": "MIT",
   "repository": {
     "type": "git",
