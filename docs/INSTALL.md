@@ -116,13 +116,16 @@ If you are on a non-systemd image, the tarball still runs manually with `/opt/sp
 | Floating always-on-top widget | Logged-on desktop session (Windows user logon / Linux `DISPLAY`) |
 | Headless / SSH-only box | Use the browser widget URL from another machine is **not** default (service is localhost-only); use a local browser or keep overlay off |
 
-### 5. Windows SmartScreen (unsigned Setup)
+### 5. Windows SmartScreen / trusted installer
 
-`SPECTRE-Setup.exe` is not code-signed. On a PC that trusts your build:
+Public trust needs an **Authenticode signature** (Azure Artifact Signing or an OV code-signing certificate). How to obtain and wire that into the build: [CODE-SIGNING.md](CODE-SIGNING.md).
 
-1. Double-click Setup → if SmartScreen appears, click **More info**.
-2. Click **Run anyway**.
-3. Approve the UAC elevation prompt (Administrator).
+- **Signed Setup** (preferred once you have a cert): normal publisher name + UAC. Early downloads for a *new* publisher may still show SmartScreen until reputation builds — keep the same publisher identity across releases.
+- **Unsigned Setup** (current public builds until a cert is configured):
+
+  1. Double-click Setup → if SmartScreen appears, click **More info**.
+  2. Click **Run anyway**.
+  3. Approve the UAC elevation prompt (Administrator).
 
 ---
 
@@ -167,7 +170,7 @@ What the installer does (all already inside the package — offline):
 - Registers HKLM logon Run so the overlay can draw on the desktop
 - Writes uninstall metadata under Programs and Features
 
-> **SmartScreen:** the Setup binary is **unsigned**. On trusted builds choose *More info → Run anyway*.
+> **SmartScreen:** until Authenticode signing is configured ([CODE-SIGNING.md](CODE-SIGNING.md)), Setup is **unsigned** — on builds you trust choose *More info → Run anyway*.
 
 ### Portable ZIP
 
@@ -282,7 +285,7 @@ Soft tilt limits are **−50° … +50°**. Home settles within **±1.5°**.
 | Linux: `Permission denied` on serial | Not in `dialout` / stale session | `usermod -aG dialout $USER`, log out/in, replug |
 | Linux: service won’t enable | No systemd | Use a systemd distro, or run `spectre.sh` manually |
 | Overlay window missing | No desktop session | Log on locally, or use http://127.0.0.1:9000/widget.html |
-| SmartScreen blocks Setup | Unsigned binary | *More info → Run anyway* on builds you trust |
+| SmartScreen blocks Setup | Unsigned / new publisher | Prefer Authenticode ([CODE-SIGNING.md](CODE-SIGNING.md)); until then *More info → Run anyway* |
 | Port list empty in console | Driver/permission | Fix driver/dialout first, then refresh Ports |
 
 ---

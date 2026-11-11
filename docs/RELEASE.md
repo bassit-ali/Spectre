@@ -20,6 +20,10 @@
 
 Node under `runtime/` · fastify / @fastify/static / ws / serialport · Electron · web UI
 
+## Windows trusted installer (optional next step)
+
+Unsigned Setup triggers SmartScreen. To ship a signed `SPECTRE-Setup.exe`, use Azure Artifact Signing or an OV code-signing cert and the repo hook in `installers/windows/sign-setup.ps1`. Details: [CODE-SIGNING.md](CODE-SIGNING.md).
+
 ## Cannot ship (OS / hardware)
 
 | Item | Why | What you do |
