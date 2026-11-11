@@ -120,10 +120,10 @@ schtasks /Delete /TN $TaskName /F 2>$null | Out-Null
 
 $nodeAbs = $null
 foreach ($cand in @(
+  (Join-Path $InstallDir 'runtime\node.exe'),
   (Get-Command node -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source),
   (Join-Path ${env:ProgramFiles} 'nodejs\node.exe'),
-  (Join-Path ${env:ProgramFiles(x86)} 'nodejs\node.exe'),
-  (Join-Path $InstallDir 'runtime\node.exe')
+  (Join-Path ${env:ProgramFiles(x86)} 'nodejs\node.exe')
 )) {
   if ($cand -and (Test-Path -LiteralPath $cand)) { $nodeAbs = $cand; break }
 }

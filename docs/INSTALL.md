@@ -1,6 +1,6 @@
 ﻿# SPECTRE — Install Guide
 
-**Version 1.1.3**
+**Version 1.1.4**
 
 SPECTRE is a local pan/tilt controller for Pelco-D heads. It binds to **127.0.0.1:9000**, serves the web console, and optionally shows an always-on-top desktop widget.
 
@@ -21,7 +21,7 @@ SPECTRE is a local pan/tilt controller for Pelco-D heads. It binds to **127.0.0.
 | File | Platform | Role |
 |------|----------|------|
 | `SPECTRE-Setup.exe` | Windows x64 | **Recommended** all-users installer |
-| `SPECTRE-windows-x64-v1.1.3.zip` | Windows x64 | Portable payload + `install.ps1` |
+| `SPECTRE-windows-x64-v1.1.4.zip` | Windows x64 | Portable payload + `install.ps1` |
 | `spectre-linux-x64.tar.gz` | Linux x86_64 | Extract + `sudo ./install.sh` |
 | `spectre-linux-arm64.tar.gz` | Linux ARM64 / Pi | Same |
 | `SPECTRE-Install-Guide.pdf` | All | This guide (printable) |
@@ -36,7 +36,7 @@ Install from these packages for day-to-day use. Building from source is only for
 
 - USB-serial driver for your adapter (CH340 / FTDI / etc.)
 - Pelco-D pan/tilt with angle query support for closed-loop landing
-- **No system Node.js** — release packages bundle a Node runtime under `runtime/`
+- **No system Node.js / npm** — release packages bundle Node, production deps, serialport natives, and Electron
 
 ### Windows
 
@@ -60,12 +60,12 @@ Install from these packages for day-to-day use. Building from source is only for
 2. After install / logon, open **http://127.0.0.1:9000/**.
 3. The desktop widget starts with the service when a user session is active.
 
-What the installer does:
+What the installer does (all already inside the package — offline):
 
 - Copies the app to `C:\Program Files\SPECTRE\`
-- Installs production `node_modules` (including `serialport`)
-- Bundles **Node** under `runtime\node.exe` (offline — no PATH Node needed)
-- Stages **pip-shell** with Electron for the overlay
+- Ships production `node_modules` (fastify, serialport, ws, …)
+- Ships **Node** under `runtime\node.exe`
+- Ships **Electron** under `pip-shell\` for the overlay
 - Creates Start Menu shortcuts
 - Registers HKLM logon Run so the overlay can draw on the desktop
 - Writes uninstall metadata under Programs and Features
@@ -76,7 +76,7 @@ What the installer does:
 
 ```powershell
 # Elevated PowerShell
-Expand-Archive SPECTRE-windows-x64-v1.1.3.zip -DestinationPath C:\Temp\spectre-payload
+Expand-Archive SPECTRE-windows-x64-v1.1.4.zip -DestinationPath C:\Temp\spectre-payload
 cd C:\Temp\spectre-payload
 .\install.ps1
 ```
@@ -109,14 +109,14 @@ sudo ./install.sh
 
 Open **http://127.0.0.1:9000/**.
 
-The installer:
+The installer (fully offline — no network/npm on the target):
 
 - Installs to `/opt/spectre`
 - Enables `spectre.service` (starts on boot)
 - Starts the service immediately
-- Uses bundled Node under `runtime/bin/node` (no system Node required)
+- Uses bundled Node under `runtime/bin/node`
+- Ships Electron under `pip-shell/` (restores execute bits; browser widget always works)
 - Writes USB-serial udev rules and adds the installing user to `dialout` when possible
-- Installs Electron for `pip-shell/` when network/npm is available (browser widget works offline either way)
 
 ### Raspberry Pi notes
 

@@ -7,7 +7,7 @@
 ;   server\dist\, web\dist\, pip-shell\, node_modules\, package.json, spectre.cmd, install.ps1
 
 !ifndef PRODUCT_VERSION
-  !define PRODUCT_VERSION "1.1.3"
+  !define PRODUCT_VERSION "1.1.4"
 !endif
 
 !define PRODUCT_NAME "SPECTRE"
