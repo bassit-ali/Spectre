@@ -58,7 +58,7 @@ PAYLOAD="$(cd "${PAYLOAD}" && pwd)"
 echo "    From: ${PAYLOAD}"
 echo "    To:   ${INSTALL_DIR}"
 
-if [[ ! -x "${PAYLOAD}/runtime/bin/node" ]] && ! command -v node >/dev/null 2>&1; then
+if [[ ! -f "${PAYLOAD}/runtime/bin/node" ]] && ! command -v node >/dev/null 2>&1; then
   echo "ERROR: No bundled runtime/bin/node and no system node on PATH." >&2
   echo "This package should include runtime/ — re-download the release archive." >&2
   exit 1
@@ -79,12 +79,29 @@ else
 fi
 
 # Ensure launcher + unit from installer kit if missing in payload
-if [[ ! -x "${INSTALL_DIR}/spectre.sh" ]]; then
+if [[ ! -f "${INSTALL_DIR}/spectre.sh" ]]; then
   if [[ -f "${SCRIPT_DIR}/spectre.sh" ]]; then
     cp "${SCRIPT_DIR}/spectre.sh" "${INSTALL_DIR}/spectre.sh"
   fi
 fi
+
+# Packaging on Windows can drop +x bits — restore offline runtime executables.
 chmod +x "${INSTALL_DIR}/spectre.sh" 2>/dev/null || true
+if [[ -d "${INSTALL_DIR}/runtime/bin" ]]; then
+  chmod -R a+rx "${INSTALL_DIR}/runtime/bin" 2>/dev/null || true
+fi
+ELECTRON_BIN="${INSTALL_DIR}/pip-shell/node_modules/electron/dist/electron"
+if [[ -f "${ELECTRON_BIN}" ]]; then
+  chmod +x "${ELECTRON_BIN}" 2>/dev/null || true
+  # chrome-sandbox needs root ownership + setuid when present; ignore if missing
+  if [[ -f "${INSTALL_DIR}/pip-shell/node_modules/electron/dist/chrome-sandbox" ]]; then
+    chown root:root "${INSTALL_DIR}/pip-shell/node_modules/electron/dist/chrome-sandbox" 2>/dev/null || true
+    chmod 4755 "${INSTALL_DIR}/pip-shell/node_modules/electron/dist/chrome-sandbox" 2>/dev/null || true
+  fi
+  echo "    Electron overlay binary present (offline)"
+else
+  echo "WARN: Electron binary not in package — browser widget still works at ${URL}widget.html" >&2
+fi
 
 # Prefer system unit for boot-enable; fall back to user unit instructions
 UNIT_SRC="${SCRIPT_DIR}/spectre.service"
@@ -111,18 +128,6 @@ udevadm control --reload-rules 2>/dev/null || true
 udevadm trigger 2>/dev/null || true
 
 printf '%s\n' "${PRODUCT}" "${TAGLINE}" "Local web service: available on port 9000 (or saved httpPort)" > "${INSTALL_DIR}/BRANDING.txt"
-
-# Desktop overlay (optional): install Electron for the local arch when pip-shell is present.
-# systemd usually has no DISPLAY — browser widget still works; overlay needs a desktop session.
-if [[ -f "${INSTALL_DIR}/pip-shell/package.json" ]]; then
-  echo "==> Installing pip-shell Electron (desktop overlay)"
-  if command -v npm >/dev/null 2>&1; then
-    (cd "${INSTALL_DIR}/pip-shell" && npm install --omit=dev --no-audit --no-fund) || \
-      echo "WARN: pip-shell Electron install failed — use browser widget at ${URL}widget.html" >&2
-  else
-    echo "WARN: npm not found — skip pip-shell Electron; use browser widget." >&2
-  fi
-fi
 
 systemctl daemon-reload
 systemctl enable "${UNIT_NAME}"
