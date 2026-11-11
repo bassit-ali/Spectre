@@ -7,7 +7,7 @@
 [CmdletBinding()]
 param(
   [string]$RepoRoot = '',
-  [string]$Version = '1.1.3',
+  [string]$Version = '1.1.4',
   [switch]$SkipBuild,
   [ValidateSet('x64', 'arm64', 'both')]
   [string]$Arch = 'both'
@@ -49,12 +49,13 @@ try {
     Copy-Item (Join-Path $scriptDir 'spectre.service') (Join-Path $payload 'spectre.service') -Force
     Copy-Item (Join-Path $scriptDir 'install.sh') (Join-Path $payload 'install.sh') -Force
 
-    # Stage pip-shell sources; Electron native binary is installed on-target by install.sh
-    & (Join-Path $RepoRoot 'installers\common\stage-pip-shell.ps1') -RepoRoot $RepoRoot -PayloadDir $payload -SkipElectronInstall
-
     # Official Node binary for this arch (offline — no system Node required)
     $nodePlat = if ($a -eq 'arm64') { 'linux-arm64' } else { 'linux-x64' }
     & (Join-Path $RepoRoot 'installers\common\bundle-node-runtime.ps1') -Platform $nodePlat -PayloadDir $payload
+
+    # Stage pip-shell + Electron binary for this Linux arch (offline — no npm at install time)
+    & (Join-Path $RepoRoot 'installers\common\stage-pip-shell.ps1') `
+      -RepoRoot $RepoRoot -PayloadDir $payload -TargetPlatform linux -TargetArch $a
 
     $pkg = @{
       name = 'spectre'
@@ -92,9 +93,14 @@ try {
     $note = @"
 SPECTRE Linux payload arch label: $a
 Build host: $hostArch
-Bundled Node: runtime/bin/node (no system Node required)
+Bundled offline runtime:
+  - Node: runtime/bin/node
+  - npm deps + serialport Linux prebuild
+  - Electron overlay: pip-shell/node_modules/electron
 
-If serialport fails to load on first start:
+No system Node/npm required. USB-serial kernel driver is still an OS concern.
+
+If serialport fails to load after a rare ABI mismatch:
 
   cd /opt/spectre
   PATH="`$PWD/runtime/bin:`$PATH" npm rebuild serialport
@@ -105,17 +111,18 @@ If serialport fails to load on first start:
     $readme = @"
 SPECTRE — Linux ($a)
 
-One-command install (offline-capable):
+Fully offline install (Node + npm deps + Electron bundled):
   sudo ./install.sh
 
 Installs to /opt/spectre, enables systemd unit spectre.service, starts service.
-Includes bundled Node under runtime/ — no separate Node.js install.
 Open: http://127.0.0.1:9000/
-
-Desktop overlay: install.sh runs npm install in pip-shell/ when a display is available.
+Desktop overlay uses the packaged Electron binary when a display session is available.
 Browser widget always works on the listen port.
 "@
     Set-Content -Path (Join-Path $payload 'README.txt') -Value $readme -Encoding UTF8
+
+    $verifyKind = if ($a -eq 'arm64') { 'linux-arm64' } else { 'linux-x64' }
+    & (Join-Path $RepoRoot 'installers\common\verify-payload.ps1') -PayloadDir $payload -Kind $verifyKind
 
     $outTgz = Join-Path $release "spectre-linux-$a.tar.gz"
     $stage = Join-Path $release "linux\_stage_$a"

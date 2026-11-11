@@ -6,7 +6,7 @@
 [CmdletBinding()]
 param(
   [switch]$SkipNpmInstall,
-  [string]$Version = '1.1.3'
+  [string]$Version = '1.1.4'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -55,11 +55,12 @@ try {
   Copy-Item (Join-Path $Root 'server\shared') (Join-Path $Payload 'server\shared') -Recurse -Force -ErrorAction SilentlyContinue
   Copy-Item (Join-Path $Root 'web\dist') (Join-Path $Payload 'web\dist') -Recurse -Force
 
-  # Desktop overlay (Electron) — required for always-on-top widget
-  & (Join-Path $Root 'installers\common\stage-pip-shell.ps1') -RepoRoot $Root -PayloadDir $Payload
-
   # Official Node LTS binary so Setup.exe needs no system Node install
   & (Join-Path $Root 'installers\common\bundle-node-runtime.ps1') -Platform 'win-x64' -PayloadDir $Payload
+
+  # Desktop overlay (Electron) — required for always-on-top widget
+  & (Join-Path $Root 'installers\common\stage-pip-shell.ps1') `
+    -RepoRoot $Root -PayloadDir $Payload -TargetPlatform win32 -TargetArch x64
 
   # Runtime package.json (server entry only)
   $pkg = @{
@@ -93,8 +94,8 @@ All-users install (Administrator PowerShell):
 
 Installs to C:\Program Files\SPECTRE\, registers logon autostart, opens the
 local console on the configured listen port (default 9000).
-Includes a bundled Node runtime under runtime\ — no separate Node.js install.
-Desktop widget overlay (pip-shell) when a user session is active.
+Fully offline: bundled Node (runtime\), npm deps + serialport, and Electron overlay.
+No separate Node.js / npm install. USB-serial driver is still an OS concern.
 
 Manual start: .\spectre.cmd
 "@
@@ -107,6 +108,8 @@ Manual start: .\spectre.cmd
     Where-Object { $_.Name -in @('test','tests','docs','example','examples','.github') } |
     ForEach-Object { Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
   Pop-Location
+
+  & (Join-Path $Root 'installers\common\verify-payload.ps1') -PayloadDir $Payload -Kind 'win-x64'
 
   # Latest-only: one versioned portable ZIP (no unversioned duplicate)
   $zip = Join-Path $Release "SPECTRE-windows-x64-v$Version.zip"

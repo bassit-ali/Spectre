@@ -32,7 +32,7 @@ host_arch() {
 }
 
 ARCH="${ARCH:-$(host_arch)}"
-VERSION="${VERSION:-1.1.3}"
+VERSION="${VERSION:-1.1.4}"
 PAYLOAD="${RELEASE}/linux/payload-${ARCH}"
 OUT_TGZ="${RELEASE}/spectre-linux-${ARCH}.tar.gz"
 
@@ -65,23 +65,6 @@ cp "${SCRIPT_DIR}/spectre.service" "${PAYLOAD}/spectre.service"
 cp "${SCRIPT_DIR}/install.sh" "${PAYLOAD}/install.sh"
 chmod +x "${PAYLOAD}/spectre.sh" "${PAYLOAD}/install.sh"
 
-# Stage pip-shell sources (Electron installed on-target by install.sh)
-mkdir -p "${PAYLOAD}/pip-shell"
-cp "${ROOT}/pip-shell/main.js" "${PAYLOAD}/pip-shell/main.js"
-cp "${ROOT}/pip-shell/preload.js" "${PAYLOAD}/pip-shell/preload.js"
-cat > "${PAYLOAD}/pip-shell/package.json" <<'EOF'
-{
-  "name": "spectre-pip-shell",
-  "version": "1.0.0",
-  "private": true,
-  "description": "SPECTRE always-on-top widget overlay",
-  "main": "main.js",
-  "dependencies": {
-    "electron": "^33.2.0"
-  }
-}
-EOF
-
 cat > "${PAYLOAD}/package.json" <<EOF
 {
   "name": "spectre",
@@ -112,14 +95,51 @@ if [[ ! -f "${PAYLOAD}/runtime/bin/node" ]]; then
   tar -xzf "${NODE_TGZ}" -C "${PAYLOAD}/runtime" --strip-components=1
 fi
 
+# Stage pip-shell + Electron for this arch (offline install)
+mkdir -p "${PAYLOAD}/pip-shell"
+cp "${ROOT}/pip-shell/main.js" "${PAYLOAD}/pip-shell/main.js"
+cp "${ROOT}/pip-shell/preload.js" "${PAYLOAD}/pip-shell/preload.js"
+cat > "${PAYLOAD}/pip-shell/package.json" <<'EOF'
+{
+  "name": "spectre-pip-shell",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SPECTRE always-on-top widget overlay",
+  "main": "main.js",
+  "dependencies": {
+    "electron": "^33.2.0"
+  }
+}
+EOF
+echo "==> Installing Electron into pip-shell (${ARCH})"
+(cd "${PAYLOAD}/pip-shell" && npm install --omit=dev --no-audit --no-fund)
+if [[ ! -x "${PAYLOAD}/pip-shell/node_modules/electron/dist/electron" ]]; then
+  echo "ERROR: Electron binary missing after npm install" >&2
+  exit 1
+fi
+
 echo "==> npm install --omit=dev"
 (cd "${PAYLOAD}" && npm install --omit=dev --no-audit --no-fund)
+
+# Offline essentials check
+for need in \
+  "runtime/bin/node" \
+  "node_modules/serialport/package.json" \
+  "pip-shell/node_modules/electron/dist/electron" \
+  "server/dist/src/index.js" \
+  "web/dist/index.html"
+do
+  if [[ ! -e "${PAYLOAD}/${need}" ]]; then
+    echo "ERROR: payload missing ${need}" >&2
+    exit 1
+  fi
+done
 
 NOTE="${PAYLOAD}/ARCH.txt"
 {
   echo "SPECTRE Linux payload arch label: ${ARCH}"
   echo "Build host: $(uname -m) ($(uname -s))"
-  echo "Bundled Node: runtime/bin/node (no system Node required)"
+  echo "Bundled offline: Node + npm deps + serialport + Electron"
   echo
   echo "If serialport fails: PATH=\"\$PWD/runtime/bin:\$PATH\" npm rebuild serialport"
 } > "${NOTE}"
@@ -127,11 +147,10 @@ NOTE="${PAYLOAD}/ARCH.txt"
 cat > "${PAYLOAD}/README.txt" <<EOF
 SPECTRE — Linux (${ARCH})
 
-One-command install (offline-capable):
+Fully offline install (Node + npm deps + Electron bundled):
   sudo ./install.sh
 
 Installs to /opt/spectre, enables systemd unit spectre.service, starts service.
-Includes bundled Node under runtime/ — no separate Node.js install.
 Open: http://127.0.0.1:9000/
 EOF
 
