@@ -52,3 +52,7 @@ _extract_pdf.py
 _wipe_tools.py
 docs/_motor_*
 docs/*.pdf
+
+# Local pack staging
+_pack112/
+
