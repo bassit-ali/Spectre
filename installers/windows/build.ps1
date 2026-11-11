@@ -6,7 +6,10 @@
 [CmdletBinding()]
 param(
   [switch]$SkipNpmInstall,
-  [string]$Version = '1.1.4'
+  [string]$Version = '1.1.4',
+  # Authenticode-sign SPECTRE-Setup.exe when cert env vars are set (see docs/CODE-SIGNING.md)
+  [switch]$Sign,
+  [switch]$SkipSign
 )
 
 $ErrorActionPreference = 'Stop'
@@ -170,7 +173,19 @@ Manual start: .\spectre.cmd
       subst S: /d 2>$null
       Remove-Item $nsiStage -Recurse -Force -ErrorAction SilentlyContinue
     }
-    Write-Host "    EXE: $(Join-Path $Release 'SPECTRE-Setup.exe')"
+    $setupExe = Join-Path $Release 'SPECTRE-Setup.exe'
+    Write-Host "    EXE: $setupExe"
+
+    $wantSign = $Sign -or (
+      -not $SkipSign -and (
+        $env:SPECTRE_SIGN_PFX -or $env:SPECTRE_SIGN_THUMBPRINT
+      )
+    )
+    if ($wantSign) {
+      & (Join-Path $PSScriptRoot 'sign-setup.ps1') -ExePath $setupExe
+    } else {
+      Write-Host '    Unsigned Setup (set SPECTRE_SIGN_PFX or SPECTRE_SIGN_THUMBPRINT, or pass -Sign). See docs/CODE-SIGNING.md'
+    }
   } else {
     Write-Host ''
     Write-Host 'NOTE: makensis not found — Setup.exe was NOT built.'

@@ -52,7 +52,7 @@ Full step-by-step: [docs/INSTALL.md — OS / hardware setup](docs/INSTALL.md#os-
 ### Windows
 
 1. Install the USB-serial driver if Device Manager has no healthy **COMx**.
-2. Run **SPECTRE-Setup.exe** as Administrator (SmartScreen: *More info → Run anyway* on trusted builds).
+2. Run **SPECTRE-Setup.exe** as Administrator. Unsigned builds: SmartScreen → *More info → Run anyway*. To ship a trusted signed installer, see [docs/CODE-SIGNING.md](docs/CODE-SIGNING.md).
 3. Open http://127.0.0.1:9000/ after install (or after logon — the service starts with your user session).
 
 Portable path:

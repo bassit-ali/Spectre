@@ -9,9 +9,10 @@ These items stay on the operating system / hardware side:
             vendor driver if the device is unknown or has a yellow warning.
    Linux:   Usually built-in. Check: lsusb && ls /dev/ttyUSB* /dev/ttyACM*
 
-2) Windows Administrator
+2) Windows Administrator + SmartScreen
    Setup.exe / install.ps1 need elevation for Program Files + logon autostart.
    Unsigned Setup: SmartScreen → More info → Run anyway (trusted builds only).
+   To ship a signed/trusted installer: docs/CODE-SIGNING.md (Azure Artifact Signing or OV cert).
 
 3) Linux systemd
    spectre.service needs systemd (Pi OS / Ubuntu / Debian). Check: systemctl --version
