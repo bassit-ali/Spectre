@@ -1,0 +1,31 @@
+SPECTRE — what the installer cannot ship
+========================================
+
+The release package is offline for the app (Node, npm deps, serialport, Electron).
+These items stay on the operating system / hardware side:
+
+1) USB-serial driver
+   Windows: Device Manager must show a healthy COMx. Install CH340 / FTDI / CP210x
+            vendor driver if the device is unknown or has a yellow warning.
+   Linux:   Usually built-in. Check: lsusb && ls /dev/ttyUSB* /dev/ttyACM*
+
+2) Windows Administrator
+   Setup.exe / install.ps1 need elevation for Program Files + logon autostart.
+   Unsigned Setup: SmartScreen → More info → Run anyway (trusted builds only).
+
+3) Linux systemd
+   spectre.service needs systemd (Pi OS / Ubuntu / Debian). Check: systemctl --version
+
+4) Linux dialout + udev
+   install.sh writes udev rules and adds you to dialout.
+   You must log out and back in once, then unplug/replug the adapter.
+
+5) Desktop session (optional)
+   Electron overlay needs a logged-on GUI. Browser widget always works:
+   http://127.0.0.1:9000/widget.html
+
+6) Pelco-D head
+   Power on, Pelco-D address (usually 1), RS-485 (or optional UDP) wired.
+
+Full steps: docs/INSTALL.md → "OS / hardware setup (do this once)"
+Printable: SPECTRE-Install-Guide.pdf
