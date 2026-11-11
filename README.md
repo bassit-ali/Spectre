@@ -11,9 +11,9 @@ Local web console + always-on-top desktop widget, closed-loop encoder landing, s
 
 | | |
 |---|---|
-| **Version** | **1.1.0** |
+| **Version** | **1.1.1** |
 | **Repository** | [github.com/bassit-ali/Spectre](https://github.com/bassit-ali/Spectre) |
-| **Downloads** | [Releases · v1.1.0](https://github.com/bassit-ali/Spectre/releases/tag/v1.1.0) |
+| **Downloads** | [Releases · v1.1.1](https://github.com/bassit-ali/Spectre/releases/tag/v1.1.1) |
 | **Console** | http://127.0.0.1:9000/ |
 | **Widget** | http://127.0.0.1:9000/widget.html |
 | **WebSocket** | `ws://127.0.0.1:9000/ws` |
@@ -24,7 +24,7 @@ Local web console + always-on-top desktop widget, closed-loop encoder landing, s
 ## Table of contents
 
 1. [What SPECTRE does](#what-spectre-does)
-2. [Features (v1.1.0)](#features-v110)
+2. [Features (v1.1.1)](#features-v111)
 3. [Architecture](#architecture)
 4. [Requirements](#requirements)
 5. [Download / install — Windows](#download--install--windows)
@@ -63,7 +63,7 @@ Typical field link (configurable):
 
 ---
 
-## Features (v1.1.0)
+## Features (v1.1.1)
 
 | Area | Detail |
 |------|--------|
@@ -133,7 +133,7 @@ Typical field link (configurable):
 ## Download / install — Windows
 
 **Preferred:** grab signed-ready binaries from the GitHub Release  
-→ [**v1.1.0 assets**](https://github.com/bassit-ali/Spectre/releases/tag/v1.1.0)
+→ [**v1.1.1 assets**](https://github.com/bassit-ali/Spectre/releases/tag/v1.1.1)
 
 Local rebuilds land under `release/` (gitignored — too large for the repo).
 
@@ -141,7 +141,7 @@ Local rebuilds land under `release/` (gitignored — too large for the repo).
 |----------|-----|
 | **`SPECTRE-Setup.exe`** | Recommended all-users installer (~84 MB, includes Electron overlay) |
 | `SPECTRE-windows-x64-portable.zip` | Portable tree + `install.ps1` |
-| `SPECTRE-windows-x64-v1.1.0.zip` | Same ZIP, versioned filename |
+| `SPECTRE-windows-x64-v1.1.1.zip` | Same ZIP, versioned filename |
 
 ### Recommended: Setup.exe
 
@@ -253,7 +253,7 @@ If serial is disconnected, the **widget still opens** and shows the offline bann
 | **Land band** | 0.5° / 1° / 2° chips in settings ribbon. |
 | **Soft limits** | Tilt min/max shown read-only at ±50°. |
 
-Version badge in the UI reads **v1.1.0** (from `web/package.json` at build time).
+Version badge in the UI reads **v1.1.1** (from `web/package.json` at build time).
 
 ---
 
@@ -397,15 +397,15 @@ Ship gate for UI: **`npm run test:ux` → 130/130 passed**.
 From a clean tree on Windows (PowerShell):
 
 ```powershell
-.\installers\windows\build.ps1 -Version 1.1.0
-.\installers\linux\package.ps1 -Version 1.1.0
+.\installers\windows\build.ps1 -Version 1.1.1
+.\installers\linux\package.ps1 -Version 1.1.1
 .\installers\linux\build-guide.ps1
 ```
 
 On a Linux builder:
 
 ```bash
-VERSION=1.1.0 ./installers/linux/package.sh
+VERSION=1.1.1 ./installers/linux/package.sh
 ```
 
 Windows build stages:
@@ -438,16 +438,16 @@ What lives in git vs Releases:
 ```bash
 git add .
 git status   # confirm no node_modules / *.exe
-git commit -m "Release SPECTRE v1.1.0 — pan-tilt controller"
+git commit -m "Release SPECTRE v1.1.1 — pan-tilt controller"
 git branch -M main
 git remote add origin https://github.com/bassit-ali/Spectre.git   # once
 git push -u origin main
-gh release create v1.1.0 release/SPECTRE-Setup.exe \
+gh release create v1.1.1 release/SPECTRE-Setup.exe \
   release/SPECTRE-windows-x64-portable.zip \
   release/spectre-linux-x64.tar.gz \
   release/spectre-linux-arm64.tar.gz \
   release/SPECTRE-Linux-Install-Guide.pdf \
-  --title "SPECTRE v1.1.0" --notes-file docs/RELEASE.md
+  --title "SPECTRE v1.1.1" --notes-file docs/RELEASE.md
 ```
 
 ---
@@ -478,7 +478,7 @@ curl http://127.0.0.1:9000/health
 ```
 ├── README.md                 ← this file
 ├── LICENSE
-├── package.json              ← root scripts + server deps (v1.1.0)
+├── package.json              ← root scripts + server deps (v1.1.1)
 ├── server/                   ← Fastify service + shared controller
 ├── web/                      ← console + widget (Vite)
 ├── pip-shell/                ← Electron always-on-top shell
