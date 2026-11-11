@@ -2,11 +2,17 @@
 <#
 .SYNOPSIS
   Copy pip-shell sources into a payload and npm-install Electron for the overlay.
+  Supports cross-packing Linux Electron from a Windows host via npm_config_platform/arch.
 #>
 param(
   [Parameter(Mandatory = $true)][string]$RepoRoot,
   [Parameter(Mandatory = $true)][string]$PayloadDir,
-  [switch]$SkipElectronInstall
+  [switch]$SkipElectronInstall,
+  # Host default when omitted. Use linux + x64/arm64 when packaging Linux archives on Windows.
+  [ValidateSet('win32', 'linux', 'darwin')]
+  [string]$TargetPlatform = '',
+  [ValidateSet('x64', 'arm64', 'ia32')]
+  [string]$TargetArch = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,6 +41,18 @@ function Remove-TreeRobust([string]$Path) {
   return -not (Test-Path -LiteralPath $Path)
 }
 
+function Test-ElectronBinary([string]$PipDir, [string]$Platform) {
+  $dist = Join-Path $PipDir 'node_modules\electron\dist'
+  if ($Platform -eq 'win32') {
+    return Test-Path (Join-Path $dist 'electron.exe')
+  }
+  if ($Platform -eq 'linux' -or $Platform -eq 'darwin') {
+    return Test-Path (Join-Path $dist 'electron')
+  }
+  # Unknown: accept either
+  return (Test-Path (Join-Path $dist 'electron.exe')) -or (Test-Path (Join-Path $dist 'electron'))
+}
+
 $cleared = Remove-TreeRobust $dst
 if (-not $cleared) {
   Write-Warning "pip-shell path is locked — refreshing overlay sources in place (Electron binary reused if present)."
@@ -56,24 +74,44 @@ $pkg = @{
 } | ConvertTo-Json -Depth 5
 Set-Content -Path (Join-Path $dst 'package.json') -Value $pkg -Encoding UTF8
 
-$winElectron = Join-Path $dst 'node_modules\electron\dist\electron.exe'
-$nixElectron = Join-Path $dst 'node_modules\electron\dist\electron'
-$hasElectron = (Test-Path $winElectron) -or (Test-Path $nixElectron)
+if (-not $TargetPlatform) {
+  $TargetPlatform = if ($IsLinux) { 'linux' } elseif ($IsMacOS) { 'darwin' } else { 'win32' }
+}
+if (-not $TargetArch) {
+  $TargetArch = if ($env:PROCESSOR_ARCHITECTURE -match 'ARM') { 'arm64' } else { 'x64' }
+}
+
+$hasElectron = Test-ElectronBinary $dst $TargetPlatform
 
 if (-not $SkipElectronInstall -and -not $hasElectron) {
-  Write-Host '==> Installing Electron into payload/pip-shell'
+  Write-Host "==> Installing Electron into payload/pip-shell ($TargetPlatform-$TargetArch)"
   Push-Location $dst
+  $prevPlatform = $env:npm_config_platform
+  $prevArch = $env:npm_config_arch
+  $prevTargetArch = $env:npm_config_target_arch
+  $prevElectronPlatform = $env:npm_config_electron_platform
   try {
+    $env:npm_config_platform = $TargetPlatform
+    $env:npm_config_arch = $TargetArch
+    $env:npm_config_target_arch = $TargetArch
+    # electron/@electron/get honor these for the download zip
+    $env:npm_config_electron_platform = $TargetPlatform
     npm install --omit=dev --no-audit --no-fund
   } finally {
+    if ($null -eq $prevPlatform) { Remove-Item Env:npm_config_platform -ErrorAction SilentlyContinue } else { $env:npm_config_platform = $prevPlatform }
+    if ($null -eq $prevArch) { Remove-Item Env:npm_config_arch -ErrorAction SilentlyContinue } else { $env:npm_config_arch = $prevArch }
+    if ($null -eq $prevTargetArch) { Remove-Item Env:npm_config_target_arch -ErrorAction SilentlyContinue } else { $env:npm_config_target_arch = $prevTargetArch }
+    if ($null -eq $prevElectronPlatform) { Remove-Item Env:npm_config_electron_platform -ErrorAction SilentlyContinue } else { $env:npm_config_electron_platform = $prevElectronPlatform }
     Pop-Location
   }
-  $hasElectron = (Test-Path $winElectron) -or (Test-Path $nixElectron)
+  $hasElectron = Test-ElectronBinary $dst $TargetPlatform
   if (-not $hasElectron) {
-    Write-Warning 'Electron binary may be missing after npm install — overlay open will fail until fixed.'
+    throw "Electron binary missing after npm install for $TargetPlatform-$TargetArch under $dst"
   }
 } elseif ($hasElectron) {
   Write-Host '    Electron binary already present — skipping npm install'
+} elseif ($SkipElectronInstall) {
+  Write-Host '    SkipElectronInstall — overlay binary not staged (browser widget still works)'
 }
 
 Write-Host "    pip-shell staged at $dst"
