@@ -7,7 +7,7 @@
 [CmdletBinding()]
 param(
   [string]$RepoRoot = '',
-  [string]$Version = '1.1.2',
+  [string]$Version = '1.1.3',
   [switch]$SkipBuild,
   [ValidateSet('x64', 'arm64', 'both')]
   [string]$Arch = 'both'
@@ -52,6 +52,10 @@ try {
     # Stage pip-shell sources; Electron native binary is installed on-target by install.sh
     & (Join-Path $RepoRoot 'installers\common\stage-pip-shell.ps1') -RepoRoot $RepoRoot -PayloadDir $payload -SkipElectronInstall
 
+    # Official Node binary for this arch (offline — no system Node required)
+    $nodePlat = if ($a -eq 'arm64') { 'linux-arm64' } else { 'linux-x64' }
+    & (Join-Path $RepoRoot 'installers\common\bundle-node-runtime.ps1') -Platform $nodePlat -PayloadDir $payload
+
     $pkg = @{
       name = 'spectre'
       version = $Version
@@ -67,39 +71,49 @@ try {
     } | ConvertTo-Json -Depth 5
     Set-Content -Path (Join-Path $payload 'package.json') -Value $pkg -Encoding UTF8
 
-    Write-Host "==> npm install --omit=dev ($a)"
+    Write-Host "==> npm install --omit=dev ($a) [linux prebuilds]"
     Push-Location $payload
-    try { npm install --omit=dev --no-audit --no-fund } finally { Pop-Location }
+    try {
+      # Fetch Linux native bindings even when packaging on Windows
+      $env:npm_config_platform = 'linux'
+      $env:npm_config_arch = $(if ($a -eq 'arm64') { 'arm64' } else { 'x64' })
+      $env:npm_config_target_arch = $env:npm_config_arch
+      # --ignore-scripts: avoid node-gyp-build spawn EINVAL when cross-packing on Windows.
+      # Prebuilds still download via npm_config_platform/arch; rebuild on-device if needed.
+      npm install --omit=dev --no-audit --no-fund --ignore-scripts
+    } finally {
+      Remove-Item Env:npm_config_platform -ErrorAction SilentlyContinue
+      Remove-Item Env:npm_config_arch -ErrorAction SilentlyContinue
+      Remove-Item Env:npm_config_target_arch -ErrorAction SilentlyContinue
+      Pop-Location
+    }
 
     $hostArch = $env:PROCESSOR_ARCHITECTURE
     $note = @"
 SPECTRE Linux payload arch label: $a
-Build host: $hostArch (windows)
+Build host: $hostArch
+Bundled Node: runtime/bin/node (no system Node required)
 
-If this archive was produced on Windows or a different CPU than the target,
-re-run on the Linux target after extract/install:
+If serialport fails to load on first start:
 
   cd /opt/spectre
-  npm rebuild serialport
+  PATH="`$PWD/runtime/bin:`$PATH" npm rebuild serialport
   sudo systemctl restart spectre.service
-
-Cross-build note: arm64 and x64 archives from this Windows packager share the
-same JS payload; native serialport bindings must be rebuilt on-device.
 "@
     Set-Content -Path (Join-Path $payload 'ARCH.txt') -Value $note -Encoding UTF8
 
     $readme = @"
 SPECTRE — Linux ($a)
 
-One-command install:
+One-command install (offline-capable):
   sudo ./install.sh
 
 Installs to /opt/spectre, enables systemd unit spectre.service, starts service.
-Open: available on port 9000 (or saved httpPort)
+Includes bundled Node under runtime/ — no separate Node.js install.
+Open: http://127.0.0.1:9000/
 
-Prerequisite: Node.js LTS on PATH.
-Desktop overlay: install.sh also runs npm install in pip-shell/ when a display is available.
-Browser widget always works on the configured listen port
+Desktop overlay: install.sh runs npm install in pip-shell/ when a display is available.
+Browser widget always works on the listen port.
 "@
     Set-Content -Path (Join-Path $payload 'README.txt') -Value $readme -Encoding UTF8
 
