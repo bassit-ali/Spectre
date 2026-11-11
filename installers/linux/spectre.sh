@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPECTRE service launcher — Developed by 26 Sig Bn R&D Wing
+# SPECTRE service launcher
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${ROOT}"
@@ -21,6 +21,5 @@ if [[ ! -f "${SPECTRE_WEB_DIR}/index.html" ]]; then
   exit 1
 fi
 
-echo "[SPECTRE] Starting on http://127.0.0.1:9000/"
-echo "Developed by 26 Sig Bn R&D Wing"
+echo "[SPECTRE] Starting on port 9000 (or saved httpPort)"
 exec "${NODE_BIN}" "${ROOT}/server/dist/src/index.js"

@@ -1,5 +1,5 @@
 @echo off
-REM SPECTRE service launcher — Developed by 26 Sig Bn R&D Wing
+REM SPECTRE service launcher
 setlocal
 title SPECTRE
 cd /d "%~dp0"
@@ -17,7 +17,6 @@ if defined SPECTRE_NODE (
   where node >nul 2>&1
   if errorlevel 1 (
     echo [SPECTRE] Node.js not found. Install Node.js LTS or place node.exe in runtime\
-    echo Developed by 26 Sig Bn R&D Wing
     pause
     exit /b 1
   )
@@ -30,7 +29,6 @@ if not exist "%SPECTRE_WEB_DIR%\index.html" (
   exit /b 1
 )
 
-echo [SPECTRE] Starting local service on http://127.0.0.1:9000/
-echo Developed by 26 Sig Bn R&D Wing
+echo [SPECTRE] Starting local service on port 9000 (or saved httpPort)
 "%NODE_EXE%" "%~dp0server\dist\src\index.js"
 exit /b %ERRORLEVEL%

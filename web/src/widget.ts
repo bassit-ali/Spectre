@@ -1,5 +1,5 @@
 import './styles/spectre.css';
-import { CONSOLE_URL, LOCAL_HTTP, LOCAL_WS, PRODUCT } from './shared/endpoint';
+import { PRODUCT, resolveHttpPort, resolveLocalHttp, resolveLocalWs } from './shared/endpoint';
 import type { PoseMsg, PresetInfo, SerialStatus } from './shared/protocol';
 import { SpectreSocket } from './shared/ws-client';
 import {
@@ -16,10 +16,12 @@ import {
   paintSectorBadges,
   paintSphereAim,
   qsa,
+  readStoredOpacity,
   renderPoseText,
   renderWsState,
   setDot,
   setTiltLimits,
+  storeOpacity,
   toast,
 } from './shared/ui';
 
@@ -33,15 +35,25 @@ declare global {
       setOpacity(value: number): void;
       setPinned(pinned: boolean): void;
       setContentHeight?(height: number): void;
+      setAutoDock?(on: boolean): void;
+      dockBottomRight?(): void;
       openExternal?(url: string): void;
       close(): void;
     };
   }
 }
 
+const MINIMIZE_MS = 320;
+/** Mirrors Floating Widget → Auto-dock bottom-right. */
+let autoDockEnabled = true;
+/** Window opacity 0.4–1 (matches Settings.widgetOpacity). */
+let widgetOpacity = 0.95;
+let minimizeRaf = 0;
+let minimizeTimer = 0;
+
 /** Open the full console in the OS default browser. */
 function openConsoleInBrowser(): void {
-  const url = CONSOLE_URL;
+  const url = `${resolveLocalHttp()}/`;
   if (shell()?.openExternal) {
     shell()!.openExternal!(url);
     return;
@@ -71,11 +83,11 @@ let pinned = true;
 let sphereDragging = false;
 
 const widget = byId('spectre-widget')!;
-const ws = new SpectreSocket(LOCAL_WS, { type: 'hello', client: 'widget', version: PRODUCT.version });
+const ws = new SpectreSocket(resolveLocalWs(), { type: 'hello', client: 'widget', version: PRODUCT.version });
 
 const tx = (msg: Parameters<SpectreSocket['send']>[0], warn = true): boolean => {
   const ok = ws.send(msg);
-  if (!ok && warn) toast('SERVER OFFLINE', 'warn');
+  if (!ok && warn) toast('SERVER NOT CONNECTED', 'warn');
   return ok;
 };
 
@@ -102,9 +114,16 @@ function renderPose(): void {
   }
 }
 
+function linkStatusLabel(s: SerialStatus): string {
+  if (!(s.connected && s.path)) return 'No Device Connected';
+  const isUdp = s.transport === 'udp' || /^udp:\/\//i.test(s.path);
+  return isUdp ? 'Connected via LAN' : 'Connected via Serial';
+}
+
 function applyStatus(s: SerialStatus): void {
   const online = !!(s.connected && s.path);
-  bindText('link-port', online ? s.path! : 'NO DEVICE CONNECTED');
+  // Never surface COM paths or udp://host:port in the overlay heading.
+  bindText('link-port', linkStatusLabel(s));
   setDot('link', online ? 'on' : 'err');
   widget.classList.toggle('is-offline', !online);
   const banner = byId('widget-offline-banner');
@@ -115,7 +134,10 @@ function applyStatus(s: SerialStatus): void {
   const chip = byId('widget-link-chip');
   chip?.classList.toggle('text-error', !online);
   chip?.classList.toggle('text-primary-fixed', online);
-  chip?.setAttribute('title', online ? `RS-485 ${s.path}` : 'RS-485 not connected — overlay stays open');
+  chip?.setAttribute(
+    'title',
+    online ? linkStatusLabel(s) : 'No device connected — overlay stays open',
+  );
 }
 
 function markActivePreset(id: number | null): void {
@@ -210,21 +232,157 @@ function setPinned(next: boolean): void {
   shell()?.setPinned(next);
 }
 
-/** Fit Electron overlay height to content; keep top edge fixed (collapse downward). */
+/** Fit Electron overlay height to content; shell keeps the bottom edge fixed. */
 function syncShellHeight(): void {
   const el = byId('spectre-widget');
   if (!el) return;
-  // Wait a frame so display:none layout settles.
-  requestAnimationFrame(() => {
-    const h = Math.ceil(el.getBoundingClientRect().height) + 12;
-    shell()?.setContentHeight?.(h);
-  });
+  const h = Math.ceil(el.getBoundingClientRect().height) + 12;
+  shell()?.setContentHeight?.(h);
 }
 
-/** Full opacity only — no opacity chrome on the widget. */
-function applyFullOpacity(): void {
-  widget.style.opacity = '1';
-  shell()?.setOpacity(1);
+function preferReducedMotion(): boolean {
+  return window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches === true;
+}
+
+function stopMinimizeTrack(): void {
+  if (minimizeRaf) {
+    cancelAnimationFrame(minimizeRaf);
+    minimizeRaf = 0;
+  }
+  if (minimizeTimer) {
+    window.clearTimeout(minimizeTimer);
+    minimizeTimer = 0;
+  }
+}
+
+/** Track shell height while body max-height / transform tweens. */
+function trackShellDuring(ms: number, onDone: () => void): void {
+  stopMinimizeTrack();
+  const start = performance.now();
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    stopMinimizeTrack();
+    onDone();
+  };
+  const tick = () => {
+    syncShellHeight();
+    if (performance.now() - start < ms) {
+      minimizeRaf = requestAnimationFrame(tick);
+    } else {
+      minimizeRaf = 0;
+      finish();
+    }
+  };
+  minimizeRaf = requestAnimationFrame(tick);
+  minimizeTimer = window.setTimeout(finish, ms + 40);
+}
+
+function applyAutoDock(on: boolean): void {
+  autoDockEnabled = on;
+  shell()?.setAutoDock?.(on);
+  if (on) shell()?.dockBottomRight?.();
+}
+
+/**
+ * Collapse / expand body: content scrolls down on minimize, up on maximize.
+ * Header stays put; shell height tracks via rAF (bottom edge fixed).
+ */
+function setMinimized(willMinimize: boolean, btn: HTMLElement): void {
+  const body = byId('widget-body');
+  if (!body) return;
+
+  const icon = byId('widget-minimize-icon');
+  btn.setAttribute('aria-expanded', String(!willMinimize));
+  if (icon) icon.textContent = willMinimize ? 'expand_more' : 'expand_less';
+
+  const instant = preferReducedMotion();
+  const duration = instant ? 0 : MINIMIZE_MS;
+
+  if (willMinimize) {
+    const startH = body.scrollHeight;
+    body.style.display = 'flex';
+    body.style.overflow = 'hidden';
+    body.style.maxHeight = `${startH}px`;
+    body.style.opacity = '1';
+    body.style.transform = 'translateY(0)';
+    void body.offsetHeight;
+    widget.classList.add('is-minimized');
+    if (instant) {
+      body.style.maxHeight = '0px';
+      body.style.opacity = '0';
+      body.style.transform = `translateY(${Math.round(startH * 0.35)}px)`;
+      body.style.display = 'none';
+      syncShellHeight();
+      return;
+    }
+    body.style.maxHeight = '0px';
+    body.style.opacity = '0';
+    body.style.transform = `translateY(${Math.round(startH * 0.35)}px)`;
+    trackShellDuring(duration, () => {
+      body.style.display = 'none';
+      body.style.transform = '';
+      syncShellHeight();
+    });
+  } else {
+    widget.classList.remove('is-minimized');
+    body.style.display = 'flex';
+    body.style.overflow = 'hidden';
+    body.style.maxHeight = '0px';
+    body.style.opacity = '0';
+    body.style.transform = 'translateY(24px)';
+    void body.offsetHeight;
+    const endH = body.scrollHeight;
+    if (instant) {
+      body.style.maxHeight = '';
+      body.style.opacity = '1';
+      body.style.transform = '';
+      body.style.overflow = '';
+      syncShellHeight();
+      if (autoDockEnabled) shell()?.dockBottomRight?.();
+      return;
+    }
+    body.style.maxHeight = `${endH}px`;
+    body.style.opacity = '1';
+    body.style.transform = 'translateY(0)';
+    trackShellDuring(duration, () => {
+      body.style.maxHeight = '';
+      body.style.overflow = '';
+      body.style.transform = '';
+      syncShellHeight();
+      if (autoDockEnabled) shell()?.dockBottomRight?.();
+    });
+  }
+}
+
+function clampOpacityFraction(v: number): number {
+  return clamp(v, 0.4, 1);
+}
+
+function syncOpacityUi(fraction: number): void {
+  const pct = Math.round(fraction * 100);
+  const slider = byId<HTMLInputElement>('widget-opacity-slider');
+  const label = byId('widget-opacity-val');
+  if (slider && document.activeElement !== slider) {
+    slider.value = String(fraction);
+    slider.setAttribute('aria-valuenow', String(pct));
+  }
+  if (label) label.textContent = `${pct}%`;
+}
+
+function applyOpacity(fraction: number, persistLocal = true): void {
+  widgetOpacity = clampOpacityFraction(fraction);
+  syncOpacityUi(widgetOpacity);
+  shell()?.setOpacity(widgetOpacity);
+  if (persistLocal) storeOpacity(Math.round(widgetOpacity * 100));
+}
+
+function setOpacityPopover(open: boolean): void {
+  const pop = byId('widget-opacity-popover');
+  const btn = byId('widget-opacity-btn');
+  pop?.setAttribute('data-open', String(open));
+  btn?.setAttribute('aria-expanded', String(open));
 }
 
 function flash(cls: string[], ms = 800): void {
@@ -291,24 +449,35 @@ bindActions({
     toast(`LAND ±${deg}°`);
   },
   'widget-minimize': (el) => {
-    const body = byId('widget-body');
-    if (!body) return;
+    setOpacityPopover(false);
     const willMinimize = !widget.classList.contains('is-minimized');
-    body.style.display = willMinimize ? 'none' : 'flex';
-    widget.classList.toggle('is-minimized', willMinimize);
-    el.setAttribute('aria-expanded', String(!willMinimize));
-    const icon = byId('widget-minimize-icon');
-    // expand_less = collapse downward (top stays); expand_more = restore
-    if (icon) icon.textContent = willMinimize ? 'expand_more' : 'expand_less';
-    syncShellHeight();
+    setMinimized(willMinimize, el);
   },
   'widget-pin': () => {
+    setOpacityPopover(false);
     setPinned(!pinned);
     tx({ type: 'widget.pinned', pinned }, false);
+  },
+  'widget-opacity-toggle': () => {
+    const pop = byId('widget-opacity-popover');
+    const open = pop?.getAttribute('data-open') !== 'true';
+    setOpacityPopover(open);
+  },
+  'widget-opacity': (el) => {
+    const v = clampOpacityFraction(parseFloat((el as HTMLInputElement).value));
+    applyOpacity(v);
+    tx({ type: 'widget.opacity', opacity: v }, false);
   },
   'open-console': () => {
     openConsoleInBrowser();
   },
+});
+
+document.addEventListener('pointerdown', (ev) => {
+  const wrap = byId('widget-opacity-wrap');
+  if (!wrap) return;
+  if (wrap.contains(ev.target as Node)) return;
+  setOpacityPopover(false);
 });
 
 bindHoldJog(
@@ -337,13 +506,23 @@ ws.on('pose', (m) => {
   pose = { pan: m.pan, tilt: m.tilt, panRaw: m.panRaw, tiltRaw: m.tiltRaw, updatedAt: m.updatedAt };
   renderPose();
 });
-ws.on('status', (m) => applyStatus({ connected: m.connected, path: m.path, baudRate: m.baudRate, address: m.address }));
+ws.on('status', (m) =>
+  applyStatus({
+    connected: m.connected,
+    path: m.path,
+    baudRate: m.baudRate,
+    address: m.address,
+    transport: (m as { transport?: 'serial' | 'udp' }).transport,
+  }),
+);
 ws.on('presets', (m) => applyPresets(m.presets, m.active));
 ws.on('settings', (m) => {
   const tMin = m.settings.limits?.tiltMin;
   const tMax = m.settings.limits?.tiltMax;
   if (typeof tMin === 'number' && typeof tMax === 'number') setTiltLimits(tMin, tMax);
   if (m.settings.widgetPinned != null) setPinned(m.settings.widgetPinned);
+  if (m.settings.widgetAutoDock != null) applyAutoDock(!!m.settings.widgetAutoDock);
+  if (typeof m.settings.widgetOpacity === 'number') applyOpacity(m.settings.widgetOpacity, false);
   syncLandingResUi(m.settings.approach?.deadband);
 });
 ws.on('error', (m) => toast(`SERVER: ${m.message}`, 'warn'));
@@ -366,11 +545,12 @@ window.setInterval(() => renderWsState(ws.state, ws.latencyMs), 1000);
 
 setSpeedMode('creep');
 setPinned(true);
-applyFullOpacity();
+applyOpacity(readStoredOpacity() / 100);
+applyAutoDock(true);
 paintSectorBadges('widget');
 renderPose();
 applyStatus({ connected: false, path: null, baudRate: 9600, address: 1 });
-syncShellHeight();
+requestAnimationFrame(() => syncShellHeight());
 window.addEventListener('resize', () => {
   if (!widget.classList.contains('is-minimized')) syncShellHeight();
 });
@@ -417,5 +597,5 @@ window.addEventListener('resize', () => {
   });
 }
 
-console.info(`[spectre] widget ${PRODUCT.version} → ${LOCAL_HTTP}`);
+console.info(`[spectre] widget ${PRODUCT.version} · available on port ${resolveHttpPort()}`);
 ws.connect();

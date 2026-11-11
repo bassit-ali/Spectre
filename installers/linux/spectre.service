@@ -1,6 +1,6 @@
 [Unit]
-Description=SPECTRE pan/tilt local web service (Developed by 26 Sig Bn R&D Wing)
-Documentation=http://127.0.0.1:9000/
+Description=SPECTRE pan/tilt local web service
+Documentation=file:///opt/spectre/README.txt
 After=network.target
 
 [Service]

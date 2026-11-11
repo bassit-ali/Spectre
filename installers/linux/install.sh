@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # SPECTRE one-command Linux installer (x86_64 / aarch64)
-# Developed by 26 Sig Bn R&D Wing
 #
 # Usage (from extracted package or repo installers/linux with staged payload):
 #   sudo ./install.sh
@@ -8,7 +7,7 @@
 set -euo pipefail
 
 PRODUCT="SPECTRE"
-TAGLINE="Developed by 26 Sig Bn R&D Wing"
+TAGLINE="SPECTRE pan/tilt pedestal controller"
 INSTALL_DIR="/opt/spectre"
 UNIT_NAME="spectre.service"
 URL="http://127.0.0.1:9000/"
@@ -109,7 +108,7 @@ EOF
 udevadm control --reload-rules 2>/dev/null || true
 udevadm trigger 2>/dev/null || true
 
-printf '%s\n' "${PRODUCT}" "${TAGLINE}" "Local web service: ${URL}" > "${INSTALL_DIR}/BRANDING.txt"
+printf '%s\n' "${PRODUCT}" "${TAGLINE}" "Local web service: available on port 9000 (or saved httpPort)" > "${INSTALL_DIR}/BRANDING.txt"
 
 # Desktop overlay (optional): install Electron for the local arch when pip-shell is present.
 # systemd usually has no DISPLAY — browser widget still works; overlay needs a desktop session.

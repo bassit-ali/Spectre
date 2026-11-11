@@ -4,6 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SPECTRE — PAN-TILT PEDESTAL CONTROLLER · Widget</title>
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" sizes="any" />
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="shortcut icon" href="/favicon.ico" />
   <script type="module" src="/src/widget.ts"></script>
 </head>
 <body class="bg-background text-on-surface font-body-md text-body-md antialiased selection:bg-primary-container selection:text-on-primary-container select-none overflow-hidden">
@@ -33,24 +37,35 @@
             SPECTRE
           </button>
           <span class="dot" data-dot="link"></span>
-          <span class="px-1 bg-surface-container text-error font-label-code text-[9px] rounded truncate max-w-[11rem]" id="widget-link-chip" data-bind="link-port" title="RS-485 not connected — overlay stays open">NO DEVICE CONNECTED</span>
+          <span class="px-1 bg-surface-container text-error font-label-code text-[9px] rounded truncate max-w-[14rem]" id="widget-link-chip" data-bind="link-port" title="No device connected — overlay stays open">No Device Connected</span>
         </div>
         <span class="font-label-code text-[9px] text-outline tracking-wider leading-none mt-1 truncate" id="product-subtitle">PAN-TILT PEDESTAL CONTROLLER</span>
       </div>
     </div>
     <div class="no-drag flex items-center gap-1 shrink-0">
+      <div id="widget-opacity-wrap">
+        <button type="button" id="widget-opacity-btn" data-action="widget-opacity-toggle"
+          title="Widget transparency" aria-expanded="false" aria-controls="widget-opacity-popover"
+          class="w-6 h-6 flex items-center justify-center rounded bg-surface-container text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors">
+          <span class="material-symbols-outlined text-[15px]">opacity</span>
+        </button>
+        <div id="widget-opacity-popover" role="dialog" aria-label="Widget opacity" data-open="false">
+          <input id="widget-opacity-slider" data-action="widget-opacity" type="range" min="0.4" max="1" step="0.05" value="0.95" orient="vertical" aria-valuemin="40" aria-valuemax="100" aria-valuenow="95" title="Opacity" />
+          <span id="widget-opacity-val">95%</span>
+        </div>
+      </div>
       <button type="button" id="widget-pin-btn" data-action="widget-pin" aria-pressed="true" title="Pin always on top" class="w-6 h-6 flex items-center justify-center rounded bg-surface-container text-primary-fixed-dim hover:text-primary hover:bg-surface-container-high transition-colors">
         <span class="material-symbols-outlined text-[15px] fill" id="widget-pin-icon">push_pin</span>
       </button>
-      <button type="button" class="w-6 h-6 flex items-center justify-center rounded bg-surface-container text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors" id="widget-minimize-btn" data-action="widget-minimize" title="Minimize (collapse downward)" aria-expanded="true">
+      <button type="button" class="w-6 h-6 flex items-center justify-center rounded bg-surface-container text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors" id="widget-minimize-btn" data-action="widget-minimize" title="Minimize (collapse to bottom-right)" aria-expanded="true">
         <span class="material-symbols-outlined text-[15px]" id="widget-minimize-icon">expand_less</span>
       </button>
     </div>
   </div>
 
-  <!-- Offline strip — visible when RS-485 is down; widget still stays open -->
+  <!-- Not-connected strip — visible when RS-485 is down; widget still stays open -->
   <div id="widget-offline-banner" class="no-drag px-space-md py-1 bg-error-container/90 text-center" role="status" aria-live="polite">
-    <span class="font-label-code text-[9px] font-bold tracking-wider uppercase text-on-error-container">No device connected · RS-485 offline</span>
+    <span class="font-label-code text-[9px] font-bold tracking-wider uppercase text-on-error-container">No device connected · RS-485 not connected</span>
   </div>
 
   <!-- BODY -->
@@ -96,8 +111,8 @@
           <!-- HOME / STORAGE / OFF: pan 0° / tilt flat 0° -->
           <button type="button" id="widget-home-btn" data-action="home"
             title="Home / storage / off — pan 0° · tilt flat 0°" aria-label="Home storage off"
-            class="no-drag w-5 h-5 flex items-center justify-center rounded bg-surface-container text-primary hover:bg-primary-container hover:text-on-primary-container transition-colors">
-            <span class="material-symbols-outlined text-[14px]">home</span>
+            class="no-drag w-7 h-7 flex items-center justify-center rounded bg-surface-container text-primary hover:bg-primary-container hover:text-on-primary-container transition-colors">
+            <span class="material-symbols-outlined text-[18px]">home</span>
           </button>
         </div>
 
@@ -141,15 +156,15 @@
             <button type="button" class="jog-btn absolute left-1 top-1/2 -translate-y-1/2 w-5 h-6 rounded bg-surface-container/90 hover:bg-primary-container hover:text-on-primary-container text-primary flex items-center justify-center transition-all z-10" id="widget-jog-left" data-jog="left" title="Pan − (hold)" aria-label="Pan minus"><span class="material-symbols-outlined text-[13px]">keyboard_arrow_left</span></button>
             <button type="button" class="jog-btn absolute right-1 top-1/2 -translate-y-1/2 w-5 h-6 rounded bg-surface-container/90 hover:bg-primary-container hover:text-on-primary-container text-primary flex items-center justify-center transition-all z-10" id="widget-jog-right" data-jog="right" title="Pan + (hold)" aria-label="Pan plus"><span class="material-symbols-outlined text-[13px]">keyboard_arrow_right</span></button>
           </div>
-          <!-- Tilt rail height-matched to the 2D disc -->
+          <!-- Tilt rail height-matched to the 2D disc; live ° overlays track (does not shrink thumb travel) -->
           <div class="tilt-rail tilt-rail--pad">
             <span class="tilt-rail-cap">+50°</span>
             <div class="tilt-track">
               <div class="tilt-level-bar" title="0° LEVEL"></div>
               <span class="tilt-level-tag">0°</span>
               <input class="tilt-slider-v" id="widget-tilt-slider" data-action="tilt-slider" max="50" min="-50" step="0.25" type="range" value="0" title="Tilt slider" aria-label="Tilt degrees" />
+              <span class="tilt-live-deg" id="widget-tilt-slider-label">—°</span>
             </div>
-            <span class="font-label-code text-[8px] text-secondary font-bold leading-none" id="widget-tilt-slider-label">—°</span>
             <span class="tilt-rail-cap">−50°</span>
           </div>
         </div>
@@ -275,10 +290,8 @@
     </div>
   </div>
 
-  <!-- FOOTER — credit only (pin is in heading; no IP / opacity) -->
-  <div class="px-space-md py-1.5 bg-surface-container-lowest/90 rounded-b-xl" id="widget-footer">
-    <div class="text-center font-label-code text-[8px] text-outline uppercase tracking-widest">DEVELOPED BY 26 SIG BN R&amp;D WING</div>
-  </div>
+  <!-- FOOTER — pin is in heading; no credit / IP / opacity -->
+  <div class="px-space-md py-1.5 bg-surface-container-lowest/90 rounded-b-xl" id="widget-footer"></div>
 </aside>
 </main>
 </body>

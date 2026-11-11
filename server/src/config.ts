@@ -56,6 +56,17 @@ function isLegacyPresetLabel(label: string, id: number): boolean {
   );
 }
 
+/** HTTP/WS listen port range (operator-selectable; default 9000). */
+export const HTTP_PORT_MIN = 9000;
+export const HTTP_PORT_MAX = 15000;
+export const DEFAULT_HTTP_PORT = 9000;
+
+export function clampHttpPort(v: unknown): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  if (!Number.isFinite(n)) return DEFAULT_HTTP_PORT;
+  return Math.max(HTTP_PORT_MIN, Math.min(HTTP_PORT_MAX, Math.round(n)));
+}
+
 export type AppConfig = {
   lastPort: string;
   baudRate: number;
@@ -70,6 +81,8 @@ export type AppConfig = {
   udpPath: string;
   /** Prefer UDP over COM when auto-connecting (Ethernet NIC dedicated to the turntable). */
   preferUdp: boolean;
+  /** Local SPECTRE HTTP/WS listen port (9000–15000). Applied on next process start. */
+  httpPort: number;
   limits: SoftLimits;
   approach: ApproachConfig;
   presets: PresetMeta[];
@@ -90,9 +103,10 @@ export function defaultConfig(): AppConfig {
     panSpeed: 48,
     tiltSpeed: 32,
     autoConnect: true,
-    // Ethernet/UDP kept dormant until a live endpoint is proven — RS-485 is the active path.
-    udpPath: 'udp://10.55.55.50:6666',
+    // Factory seed from turntable manual (editable via console; RS-485 remains default auto-connect).
+    udpPath: 'udp://192.168.8.200:6666',
     preferUdp: false,
+    httpPort: DEFAULT_HTTP_PORT,
     limits: { enabled: true, panMin: -180, panMax: 180, tiltMin: -50, tiltMax: 50 },
     approach: { speedFast: 42, speedSlow: 5, rampDistance: 18, deadband: 1, pollMs: 80 },
     presets: Array.from({ length: 9 }, (_, i) => ({
@@ -106,7 +120,7 @@ export function defaultConfig(): AppConfig {
     widgetOpacity: 0.95,
     widgetPinned: true,
     widgetVisible: true,
-    widgetAutoDock: false,
+    widgetAutoDock: true,
   };
 }
 
@@ -164,13 +178,15 @@ export function normalizeConfig(raw: unknown): AppConfig {
   const cfg: AppConfig = {
     lastPort: typeof r.lastPort === 'string' && r.lastPort ? r.lastPort : d.lastPort,
     baudRate: num(r.baudRate, d.baudRate),
-    address: Math.max(0, Math.min(255, Math.round(num(r.address, d.address)))),
+    // Pelco-D camera address is 1..255 (UI + BIT); never persist 0.
+    address: Math.max(1, Math.min(255, Math.round(num(r.address, d.address)) || 1)),
     panSpeed: Math.max(0, Math.min(63, num(r.panSpeed, d.panSpeed))),
     tiltSpeed: Math.max(0, Math.min(63, num(r.tiltSpeed, d.tiltSpeed))),
     autoConnect: typeof r.autoConnect === 'boolean' ? r.autoConnect : d.autoConnect,
     udpPath:
       typeof r.udpPath === 'string' && /^udp:\/\//i.test(r.udpPath) ? r.udpPath : d.udpPath,
     preferUdp: typeof r.preferUdp === 'boolean' ? r.preferUdp : d.preferUdp,
+    httpPort: clampHttpPort(r.httpPort ?? d.httpPort),
     limits: {
       enabled: typeof lim.enabled === 'boolean' ? lim.enabled : d.limits.enabled,
       // Pan travel lock is fixed at ±180 by MotionController regardless.
