@@ -12,16 +12,26 @@
 
 ## Changes
 
-- **Fully offline packages**: Node.js LTS, production npm deps (`fastify`, `serialport`, `ws`, `@fastify/static`), serialport native prebuilds, and Electron overlay are all inside the installer/archives
-- Linux packages no longer run `npm install` at install time for Electron
-- Pack-time `verify-payload.ps1` gate fails the build if any offline essential is missing
-- Install scripts prefer / restore bundled runtime binaries (`runtime/`, executable bits on Linux)
+- Fully offline packages: Node.js LTS, production npm deps, serialport natives, Electron
+- Pack-time payload verification
+- Install docs spell out **what cannot ship** (USB-serial driver, Admin/systemd/dialout, desktop session) with how-to steps
 
-## Still OS-provided (cannot ship in the archive)
+## Shipped in the archive
 
-- USB-serial kernel/driver (CH340 / FTDI / CP210x)
-- Linux: `systemd`, `dialout` / udev (rules are written by `install.sh`)
-- A logged-on desktop session if you want the Electron overlay (browser widget works headless)
+Node under `runtime/` · fastify / @fastify/static / ws / serialport · Electron · web UI
+
+## Cannot ship (OS / hardware)
+
+| Item | Why | What you do |
+|------|-----|-------------|
+| USB-serial driver | Vendor/kernel driver | Install CH340 / FTDI / CP210x driver (Windows); Linux modules usually present |
+| Windows Admin | Elevation for Program Files + autostart | Run Setup elevated; SmartScreen *Run anyway* if trusted |
+| Linux systemd | OS init | Use a systemd distro |
+| Linux dialout / udev | Device permissions | `install.sh` configures; **log out/in** once |
+| Desktop session | Overlay UI | Optional — browser widget works headless |
+| Pelco-D head | Hardware | Power, address, cabling |
+
+Step-by-step: [INSTALL.md — OS / hardware setup](INSTALL.md#os--hardware-setup-do-this-once).
 
 ## Build
 

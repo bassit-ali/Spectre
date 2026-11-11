@@ -36,14 +36,24 @@ Field steps: [docs/INSTALL.md](docs/INSTALL.md). Release notes: [docs/RELEASE.md
 - **Electron** desktop overlay under `pip-shell/`
 - Web console + widget (`web/dist`)
 
-Still OS-side (not in the archive): USB-serial driver, and on Linux `systemd` + `dialout` (udev rules are written by the installer).
+### What cannot ship (OS / hardware — you set these up once)
+
+| Need | Why | How |
+|------|-----|-----|
+| USB-serial **driver** | Vendor/kernel driver for the dongle | Windows Device Manager + vendor installer; Linux usually already has modules — see [INSTALL.md](docs/INSTALL.md#os--hardware-setup-do-this-once) |
+| Windows **Admin** | Program Files + autostart | Run Setup / `install.ps1` elevated |
+| Linux **systemd** | Boot service | Use Pi OS / Ubuntu / Debian (normal) |
+| Linux **dialout** | Permission to open `/dev/ttyUSB*` | `install.sh` adds you; **log out/in** once |
+| Desktop session | Electron overlay only | Browser widget works without it |
+| Pelco-D head + cable | Hardware | Power on, address **1**, RS-485 |
+
+Full step-by-step: [docs/INSTALL.md — OS / hardware setup](docs/INSTALL.md#os--hardware-setup-do-this-once).
 
 ### Windows
 
-1. Run **SPECTRE-Setup.exe** as Administrator.
-2. Open http://127.0.0.1:9000/ after install (or after logon — the service starts with your user session).
-
-The Setup binary is unsigned; on SmartScreen use *More info → Run anyway* for builds you trust.
+1. Install the USB-serial driver if Device Manager has no healthy **COMx**.
+2. Run **SPECTRE-Setup.exe** as Administrator (SmartScreen: *More info → Run anyway* on trusted builds).
+3. Open http://127.0.0.1:9000/ after install (or after logon — the service starts with your user session).
 
 Portable path:
 
@@ -61,9 +71,10 @@ Uninstall: Apps → SPECTRE, or `.\installers\windows\uninstall-system.ps1` (ele
 tar -xzf spectre-linux-x64.tar.gz   # or spectre-linux-arm64.tar.gz
 cd spectre
 sudo ./install.sh
+# log out/in once so dialout applies, then plug the adapter
 ```
 
-Installs under `/opt/spectre`, enables `spectre.service`, restores execute bits on the bundled runtime, and sets USB-serial udev / `dialout` when it can. No system Node/npm required.
+Installs under `/opt/spectre`, enables `spectre.service`, restores execute bits on the bundled runtime, writes USB-serial udev rules, and adds you to `dialout` when it can. No system Node/npm required. Driver / dialout details: [INSTALL.md](docs/INSTALL.md#os--hardware-setup-do-this-once).
 
 ---
 
@@ -146,9 +157,10 @@ docs/        INSTALL.md, RELEASE.md, screenshots/
 | Problem | What to try |
 |---------|-------------|
 | Port 9000 busy | Uninstall system SPECTRE or stop the other Node process |
-| No link | Wrong COM, missing USB-serial driver, address ≠ 1, head powered off |
-| Widget missing | Confirm Electron is in the package; Windows needs a logged-on session |
-| Linux serial denied | User in `dialout`, replug, `systemctl restart spectre` |
+| No COM / no tty device | Install USB-serial driver ([INSTALL.md](docs/INSTALL.md#1-usb-serial-adapter-driver)) |
+| No link | Wrong COM, address ≠ 1, head powered off, RS-485 wiring |
+| Widget missing | Need a logged-on desktop session; or open `/widget.html` in a browser |
+| Linux serial denied | `groups` must show `dialout` — log out/in after install, replug |
 | Native module mismatch | `PATH="$PWD/runtime/bin:$PATH" npm rebuild serialport` then restart |
 
 ```bash

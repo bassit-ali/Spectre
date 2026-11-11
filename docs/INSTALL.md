@@ -30,25 +30,122 @@ Install from these packages for day-to-day use. Building from source is only for
 
 ---
 
-## Requirements
+## What the package ships vs what it cannot
+
+Release packages are offline for the **app itself**. They include Node.js, npm production modules, serialport natives, the web UI, and Electron.
+
+They **cannot** include a few OS / hardware pieces. Those stay the machine’s responsibility:
+
+| Item | Why it is not in the archive | Who provides it |
+|------|------------------------------|-----------------|
+| **USB-serial driver** | Kernel/vendor driver for your dongle (CH340 / FTDI / CP210x). Shipping every vendor driver is wrong and often illegal without redistribution rights. | OS / adapter vendor |
+| **Windows Admin rights** | All-users install under Program Files + logon autostart needs elevation. | You (Run as Administrator) |
+| **Linux `systemd`** | Boot service management is part of the OS. SPECTRE only drops a unit file. | Distro (Pi OS, Ubuntu, Debian, …) |
+| **Linux serial permission (`dialout` + udev)** | Device node ownership is OS policy. Installer *writes* udev rules and *tries* to add you to `dialout`, but a re-login is often required. | OS + one-time user step |
+| **Desktop session (optional)** | Electron overlay needs a logged-on GUI. Headless boxes still use the browser widget. | Your login / display |
+| **Pelco-D hardware** | Physical pan/tilt + cabling. | You |
+
+**Not required on the target:** system Node.js, system npm, or a network download during install.
+
+---
+
+## OS / hardware setup (do this once)
+
+### 1. USB-serial adapter driver
+
+Without a working driver, Windows shows an unknown device / no `COMx`, and Linux may not create `/dev/ttyUSB*` or `/dev/ttyACM*`.
+
+**Identify the chip** (printed on the dongle, Device Manager, or `lsusb` on Linux): common ones are **CH340/CH341**, **FTDI FT232**, **Silicon Labs CP210x**.
+
+#### Windows
+
+1. Plug the adapter in.
+2. Open **Device Manager** → **Ports (COM & LPT)** (or **Other devices** if missing).
+3. If you see a yellow warning / “USB Serial” unknown device:
+   - Install the vendor driver for that chip (CH340, FTDI VCP, or CP210x), then unplug/replug.
+4. Note the **COMx** number (e.g. `COM3`). That is what SPECTRE’s **Ports** list will show.
+5. Optional check in PowerShell: `[System.IO.Ports.SerialPort]::GetPortNames()`
+
+#### Linux / Raspberry Pi
+
+Most Pi OS / Ubuntu / Debian kernels already include `ch341`, `ftdi_sio`, and `cp210x`.
+
+```bash
+# After plugging the adapter:
+lsusb
+ls -l /dev/ttyUSB* /dev/ttyACM* 2>/dev/null
+dmesg | tail -n 20
+```
+
+You want a device like `/dev/ttyUSB0`. If nothing appears, install kernel modules / firmware for your distro, or use a known-good adapter.
+
+### 2. Linux serial permission (`dialout`)
+
+Even with a driver, opening the port fails with “Permission denied” unless your user can access the tty.
+
+`sudo ./install.sh` already:
+
+- Writes `/etc/udev/rules.d/99-spectre-usbserial.rules` for CH340 / FTDI / CP210x
+- Runs `usermod -aG dialout <you>` when possible
+
+**You must log out and log back in** (or reboot) after the first install so the new group applies.
+
+```bash
+groups                    # should list dialout
+# If dialout is missing:
+sudo usermod -aG dialout "$USER"
+# then log out / in, unplug/replug the adapter
+ls -l /dev/ttyUSB0        # expect group dialout, mode 0660-ish
+```
+
+### 3. Linux `systemd`
+
+SPECTRE expects a normal systemd machine (Raspberry Pi OS, Ubuntu Server/Desktop, Debian, most modern Linux).
+
+```bash
+systemctl --version       # should print systemd
+```
+
+If you are on a non-systemd image, the tarball still runs manually with `/opt/spectre/spectre.sh`, but boot autostart via `spectre.service` will not apply.
+
+### 4. Desktop overlay vs browser widget
+
+| Goal | Need |
+|------|------|
+| Web console | Browser to http://127.0.0.1:9000/ — always |
+| Floating always-on-top widget | Logged-on desktop session (Windows user logon / Linux `DISPLAY`) |
+| Headless / SSH-only box | Use the browser widget URL from another machine is **not** default (service is localhost-only); use a local browser or keep overlay off |
+
+### 5. Windows SmartScreen (unsigned Setup)
+
+`SPECTRE-Setup.exe` is not code-signed. On a PC that trusts your build:
+
+1. Double-click Setup → if SmartScreen appears, click **More info**.
+2. Click **Run anyway**.
+3. Approve the UAC elevation prompt (Administrator).
+
+---
+
+## Requirements (checklist)
 
 ### All platforms
 
-- USB-serial driver for your adapter (CH340 / FTDI / etc.)
-- Pelco-D pan/tilt with angle query support for closed-loop landing
-- **No system Node.js / npm** — release packages bundle Node, production deps, serialport natives, and Electron
+- [ ] USB-serial **driver** working (COM / `/dev/ttyUSB*`)
+- [ ] Pelco-D head powered, address known (usually **1**), RS-485 (or optional UDP) wired
+- [ ] Release package from GitHub — **no** system Node/npm install
 
 ### Windows
 
-- Windows 10/11 x64
-- Administrator rights for Setup.exe / `install.ps1`
+- [ ] Windows 10/11 **x64**
+- [ ] **Administrator** for Setup.exe / `install.ps1`
+- [ ] Accept SmartScreen / UAC for trusted builds
 
 ### Linux
 
-- x86_64 or aarch64 (Raspberry Pi 4/5)
-- `sudo` + `systemd`
-- User in `dialout` for serial
-- Desktop `DISPLAY` for the Electron overlay (otherwise use the browser widget)
+- [ ] **x86_64** or **aarch64** (Pi 4/5: prefer arm64 package)
+- [ ] `sudo` + **systemd**
+- [ ] User in **dialout** after install (re-login)
+- [ ] GUI session only if you want the Electron overlay
 
 ---
 
@@ -164,14 +261,29 @@ sudo rm -rf /opt/spectre
 
 ## First run — connect the head
 
-1. Open **http://127.0.0.1:9000/** — header should show **SERVER: WS ONLINE**.
-2. Plug the USB-serial adapter; refresh **Ports** in Hardware Link.
-3. Select the port (e.g. `COM13` / `/dev/ttyUSB0`), baud **9600**, address **1**.
-4. Click **Connect**. Ribbon should show link **ONLINE**.
-5. Optional: **RUN SELF-TEST** to verify serial + encoder replies.
-6. Use **HALT** before unplugging serial or powering the head down mid-move.
+1. Confirm the USB-serial driver / dialout steps above are done.
+2. Open **http://127.0.0.1:9000/** — header should show **SERVER: WS ONLINE**.
+3. Plug the USB-serial adapter; refresh **Ports** in Hardware Link.
+4. Select the port (e.g. `COM13` / `/dev/ttyUSB0`), baud **9600**, address **1**.
+5. Click **Connect**. Ribbon should show link **ONLINE**.
+6. Optional: **RUN SELF-TEST** to verify serial + encoder replies.
+7. Use **HALT** before unplugging serial or powering the head down mid-move.
 
 Soft tilt limits are **−50° … +50°**. Home settles within **±1.5°**.
+
+---
+
+## Troubleshooting (OS prerequisites)
+
+| Symptom | Likely cause | Fix |
+|---------|--------------|-----|
+| No COM / no `/dev/ttyUSB*` | Missing USB-serial driver | Install vendor driver; see **OS / hardware setup** |
+| Windows: yellow bang in Device Manager | Driver not installed | CH340 / FTDI / CP210x driver from vendor |
+| Linux: `Permission denied` on serial | Not in `dialout` / stale session | `usermod -aG dialout $USER`, log out/in, replug |
+| Linux: service won’t enable | No systemd | Use a systemd distro, or run `spectre.sh` manually |
+| Overlay window missing | No desktop session | Log on locally, or use http://127.0.0.1:9000/widget.html |
+| SmartScreen blocks Setup | Unsigned binary | *More info → Run anyway* on builds you trust |
+| Port list empty in console | Driver/permission | Fix driver/dialout first, then refresh Ports |
 
 ---
 
