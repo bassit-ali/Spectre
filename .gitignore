@@ -55,4 +55,6 @@ docs/*.pdf
 
 # Local pack staging
 _pack112/
+_pack113/
+_pack*/
 

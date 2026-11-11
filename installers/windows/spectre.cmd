@@ -16,7 +16,7 @@ if defined SPECTRE_NODE (
 ) else (
   where node >nul 2>&1
   if errorlevel 1 (
-    echo [SPECTRE] Node.js not found. Install Node.js LTS or place node.exe in runtime\
+    echo [SPECTRE] Node.js not found. Reinstall SPECTRE so runtime\node.exe is present.
     pause
     exit /b 1
   )

@@ -11,7 +11,7 @@ elif [[ -x "${ROOT}/runtime/bin/node" ]]; then
 elif command -v node >/dev/null 2>&1; then
   NODE_BIN="$(command -v node)"
 else
-  echo "[SPECTRE] Node.js not found. Install Node.js LTS or place a portable runtime under runtime/" >&2
+  echo "[SPECTRE] Node.js not found. Reinstall SPECTRE so runtime/bin/node is present." >&2
   exit 1
 fi
 

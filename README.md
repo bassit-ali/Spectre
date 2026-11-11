@@ -1,11 +1,11 @@
-# SPECTRE
+﻿# SPECTRE
 
 Local Pelco-D pan/tilt controller — web console on `127.0.0.1:9000`, optional always-on-top desktop widget, closed-loop landing, sector presets, and halt.
 
 [![Release](https://img.shields.io/github/v/release/bassit-ali/Spectre?style=flat-square)](https://github.com/bassit-ali/Spectre/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-**v1.1.2** · [Downloads](https://github.com/bassit-ali/Spectre/releases/tag/v1.1.2) · Console: http://127.0.0.1:9000/ · Widget: http://127.0.0.1:9000/widget.html
+**v1.1.3** · [Downloads](https://github.com/bassit-ali/Spectre/releases/tag/v1.1.3) · Console: http://127.0.0.1:9000/ · Widget: http://127.0.0.1:9000/widget.html
 
 ![SPECTRE console](docs/screenshots/console.png)
 
@@ -22,7 +22,7 @@ Prefer the release packages — you should not need a daily `npm` workflow just 
 | File | Platform |
 |------|----------|
 | **SPECTRE-Setup.exe** | Windows x64 (recommended) |
-| `SPECTRE-windows-x64-v1.1.2.zip` | Windows portable + `install.ps1` |
+| `SPECTRE-windows-x64-v1.1.3.zip` | Windows portable + `install.ps1` |
 | `spectre-linux-x64.tar.gz` | Linux x86_64 |
 | `spectre-linux-arm64.tar.gz` | Linux ARM64 / Pi |
 | `SPECTRE-Install-Guide.pdf` | Printable guide |
@@ -31,16 +31,15 @@ Field steps: [docs/INSTALL.md](docs/INSTALL.md). Release notes: [docs/RELEASE.md
 
 ### Windows
 
-1. Install [Node.js LTS](https://nodejs.org/) if it is not already on `PATH`.
-2. Run **SPECTRE-Setup.exe** as Administrator.
-3. Open http://127.0.0.1:9000/ after install (or after logon — the service starts with your user session).
+1. Run **SPECTRE-Setup.exe** as Administrator.
+2. Open http://127.0.0.1:9000/ after install (or after logon — the service starts with your user session).
 
-Setup copies into `C:\Program Files\SPECTRE\`, registers logon autostart, and stages the Electron overlay. The binary is unsigned; on SmartScreen use *More info → Run anyway* for builds you trust.
+Setup is offline-capable: it includes a bundled Node runtime and the Electron overlay. No separate Node.js install. The Setup binary is unsigned; on SmartScreen use *More info → Run anyway* for builds you trust.
 
 Portable path:
 
 ```powershell
-Expand-Archive SPECTRE-windows-x64-v1.1.2.zip -DestinationPath C:\Temp\spectre
+Expand-Archive SPECTRE-windows-x64-v1.1.3.zip -DestinationPath C:\Temp\spectre
 cd C:\Temp\spectre
 .\install.ps1   # elevated
 ```
@@ -55,10 +54,11 @@ cd spectre
 sudo ./install.sh
 ```
 
-That installs under `/opt/spectre`, enables `spectre.service`, and sets USB-serial udev / `dialout` when it can. On a cross-built ARM image, rebuild natives once:
+That installs under `/opt/spectre`, enables `spectre.service`, and sets USB-serial udev / `dialout` when it can. Archives ship a bundled Node under `runtime/` — no system Node.js required. If serialport fails to load after a cross-packaged install:
 
 ```bash
-cd /opt/spectre && npm rebuild serialport
+cd /opt/spectre
+PATH="$PWD/runtime/bin:$PATH" npm rebuild serialport
 sudo systemctl restart spectre
 ```
 

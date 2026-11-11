@@ -59,7 +59,7 @@ $nodeOk = $false
 if (Get-Command node -ErrorAction SilentlyContinue) { $nodeOk = $true }
 elseif (Test-Path (Join-Path $PayloadDir 'runtime\node.exe')) { $nodeOk = $true }
 if (-not $nodeOk) {
-  Write-Warning 'Node.js not detected on PATH and no runtime\node.exe in payload. Install Node.js LTS before starting SPECTRE.'
+  Write-Warning 'No Node runtime found (PATH or runtime\node.exe). Re-download the official package which bundles Node under runtime\.'
 }
 
 Write-Host "==> Installing $ProductName"
