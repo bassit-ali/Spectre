@@ -32,7 +32,7 @@ host_arch() {
 }
 
 ARCH="${ARCH:-$(host_arch)}"
-VERSION="${VERSION:-1.1.2}"
+VERSION="${VERSION:-1.1.3}"
 PAYLOAD="${RELEASE}/linux/payload-${ARCH}"
 OUT_TGZ="${RELEASE}/spectre-linux-${ARCH}.tar.gz"
 
@@ -98,33 +98,41 @@ cat > "${PAYLOAD}/package.json" <<EOF
 }
 EOF
 
+NODE_VER="${NODE_VERSION:-20.18.2}"
+NODE_NAME="node-v${NODE_VER}-linux-${ARCH}"
+NODE_URL="https://nodejs.org/dist/v${NODE_VER}/${NODE_NAME}.tar.gz"
+NODE_CACHE="${HOME}/.cache/spectre-node-dist"
+mkdir -p "${NODE_CACHE}" "${PAYLOAD}/runtime"
+NODE_TGZ="${NODE_CACHE}/${NODE_NAME}.tar.gz"
+if [[ ! -f "${PAYLOAD}/runtime/bin/node" ]]; then
+  echo "==> Bundling Node ${NODE_VER} (${ARCH})"
+  if [[ ! -f "${NODE_TGZ}" ]]; then
+    curl -fsSL "${NODE_URL}" -o "${NODE_TGZ}"
+  fi
+  tar -xzf "${NODE_TGZ}" -C "${PAYLOAD}/runtime" --strip-components=1
+fi
+
 echo "==> npm install --omit=dev"
 (cd "${PAYLOAD}" && npm install --omit=dev --no-audit --no-fund)
 
-# serialport ships native bindings; document cross-arch caveat
 NOTE="${PAYLOAD}/ARCH.txt"
 {
   echo "SPECTRE Linux payload arch label: ${ARCH}"
   echo "Build host: $(uname -m) ($(uname -s))"
+  echo "Bundled Node: runtime/bin/node (no system Node required)"
   echo
-  echo "If this archive was produced on a different CPU architecture than the"
-  echo "target, re-run npm install --omit=dev on the target (or rebuild with"
-  echo "ARCH matching the host) so serialport native bindings match."
-  echo
-  echo "Cross-build note: arm64 packages built on x64 (or vice versa) need a"
-  echo "native rebuild on-device: cd /opt/spectre && npm rebuild serialport"
+  echo "If serialport fails: PATH=\"\$PWD/runtime/bin:\$PATH\" npm rebuild serialport"
 } > "${NOTE}"
 
 cat > "${PAYLOAD}/README.txt" <<EOF
 SPECTRE — Linux (${ARCH})
 
-One-command install:
+One-command install (offline-capable):
   sudo ./install.sh
 
 Installs to /opt/spectre, enables systemd unit spectre.service, starts service.
-Open: available on port 9000 (or saved httpPort)
-
-Prerequisite: Node.js LTS on PATH (or bundle runtime/).
+Includes bundled Node under runtime/ — no separate Node.js install.
+Open: http://127.0.0.1:9000/
 EOF
 
 mkdir -p "${RELEASE}"

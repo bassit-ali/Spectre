@@ -6,7 +6,7 @@
 [CmdletBinding()]
 param(
   [switch]$SkipNpmInstall,
-  [string]$Version = '1.1.2'
+  [string]$Version = '1.1.3'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -58,6 +58,9 @@ try {
   # Desktop overlay (Electron) — required for always-on-top widget
   & (Join-Path $Root 'installers\common\stage-pip-shell.ps1') -RepoRoot $Root -PayloadDir $Payload
 
+  # Official Node LTS binary so Setup.exe needs no system Node install
+  & (Join-Path $Root 'installers\common\bundle-node-runtime.ps1') -Platform 'win-x64' -PayloadDir $Payload
+
   # Runtime package.json (server entry only)
   $pkg = @{
     name = 'spectre'
@@ -80,7 +83,7 @@ try {
     'SPECTRE'
     'Local web service: available on port 9000 (or saved httpPort)'
     'Desktop overlay: pip-shell\ (Electron)'
-    'Requires Node.js LTS on PATH (or place node.exe in runtime\).'
+    'Bundled Node runtime: runtime\node.exe (no system Node required)'
   )
   Set-Content -Path (Join-Path $Payload 'README.txt') -Encoding UTF8 -Value @"
 SPECTRE — Windows portable payload v$Version
@@ -90,6 +93,7 @@ All-users install (Administrator PowerShell):
 
 Installs to C:\Program Files\SPECTRE\, registers logon autostart, opens the
 local console on the configured listen port (default 9000).
+Includes a bundled Node runtime under runtime\ — no separate Node.js install.
 Desktop widget overlay (pip-shell) when a user session is active.
 
 Manual start: .\spectre.cmd
@@ -135,8 +139,25 @@ Manual start: .\spectre.cmd
   }
   if ($makensisCmd) {
     Write-Host '==> Building SPECTRE-Setup.exe with NSIS'
-    & $makensisCmd "/DPRODUCT_VERSION=$Version" (Join-Path $PSScriptRoot 'Spectre.nsi')
-    if ($LASTEXITCODE -ne 0) { throw "makensis failed with exit $LASTEXITCODE" }
+    # NSIS File /r breaks on paths with spaces (e.g. "Pelco D"). Stage via SUBST.
+    $nsiStage = 'C:\spectre-nsi-payload'
+    if (Test-Path $nsiStage) { Remove-Item $nsiStage -Recurse -Force -ErrorAction SilentlyContinue }
+    New-Item -ItemType Directory -Force -Path $nsiStage | Out-Null
+    cmd /c "robocopy `"$Payload`" `"$nsiStage`" /E /NFL /NDL /NJH /NJS /nc /ns /np" | Out-Null
+    subst S: $nsiStage 2>$null
+    try {
+      $nsiText = Get-Content (Join-Path $PSScriptRoot 'Spectre.nsi') -Raw
+      $outShort = (New-Object -ComObject Scripting.FileSystemObject).GetFolder($Release).ShortPath
+      $nsiText = $nsiText -replace 'OutFile "[^"]+"', ("OutFile `"$($outShort -replace '\\','/')/SPECTRE-Setup.exe`"")
+      $nsiText = $nsiText -replace 'File /r "[^"]+"', 'File /r ".\*.*"'
+      $packNsi = 'S:\SpectrePack.nsi'
+      Set-Content -Path $packNsi -Value $nsiText -Encoding ASCII
+      & $makensisCmd "/DPRODUCT_VERSION=$Version" $packNsi
+      if ($LASTEXITCODE -ne 0) { throw "makensis failed with exit $LASTEXITCODE" }
+    } finally {
+      subst S: /d 2>$null
+      Remove-Item $nsiStage -Recurse -Force -ErrorAction SilentlyContinue
+    }
     Write-Host "    EXE: $(Join-Path $Release 'SPECTRE-Setup.exe')"
   } else {
     Write-Host ''
