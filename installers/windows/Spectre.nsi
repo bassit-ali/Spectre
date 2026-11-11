@@ -1,4 +1,4 @@
-; SPECTRE — Windows all-users installer (NSIS)
+﻿; SPECTRE — Windows all-users installer (NSIS)
 ;
 ; Build (from repo root, after staging payload):
 ;   makensis /DPRODUCT_VERSION=1.0.0 installers\windows\Spectre.nsi
@@ -7,7 +7,7 @@
 ;   server\dist\, web\dist\, pip-shell\, node_modules\, package.json, spectre.cmd, install.ps1
 
 !ifndef PRODUCT_VERSION
-  !define PRODUCT_VERSION "1.1.2"
+  !define PRODUCT_VERSION "1.1.3"
 !endif
 
 !define PRODUCT_NAME "SPECTRE"

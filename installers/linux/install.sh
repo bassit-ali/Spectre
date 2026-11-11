@@ -58,8 +58,10 @@ PAYLOAD="$(cd "${PAYLOAD}" && pwd)"
 echo "    From: ${PAYLOAD}"
 echo "    To:   ${INSTALL_DIR}"
 
-if ! command -v node >/dev/null 2>&1 && [[ ! -x "${PAYLOAD}/runtime/bin/node" ]]; then
-  echo "WARN: Node.js not on PATH. Install Node.js LTS before starting, or bundle runtime/." >&2
+if [[ ! -x "${PAYLOAD}/runtime/bin/node" ]] && ! command -v node >/dev/null 2>&1; then
+  echo "ERROR: No bundled runtime/bin/node and no system node on PATH." >&2
+  echo "This package should include runtime/ — re-download the release archive." >&2
+  exit 1
 fi
 
 systemctl stop "${UNIT_NAME}" 2>/dev/null || true
