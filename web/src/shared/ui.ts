@@ -1,4 +1,4 @@
-import { ENDPOINT_CHIP_TEXT, LOCAL_HTTP } from './endpoint';
+import { clampHttpPort, endpointChipText, resolveHttpPort } from './endpoint';
 import type { MoveFlags, PoseMsg } from './protocol';
 import type { WsState } from './ws-client';
 
@@ -557,13 +557,24 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-export function bindEndpointChips(): void {
+export function bindEndpointChips(port: number = resolveHttpPort()): void {
+  const p = clampHttpPort(port);
+  const text = endpointChipText(p);
   qsa('[data-endpoint-chip]').forEach((n) => {
     const t = n.querySelector('[data-endpoint-text]');
-    if (t) t.textContent = ENDPOINT_CHIP_TEXT;
-    n.dataset.copy = LOCAL_HTTP;
-    n.title = `Copy ${LOCAL_HTTP}`;
+    if (t) t.textContent = text;
+    n.dataset.copy = String(p);
+    n.title = `Copy port ${p}`;
   });
+  qsa('[data-bind="http-port"]').forEach((el) => {
+    el.textContent = String(p);
+  });
+  const portInput = byId<HTMLInputElement>('http-port-input');
+  if (portInput && document.activeElement !== portInput) portInput.value = String(p);
+}
+
+/** One-time click handler for copyable chips (port or other data-copy values). */
+export function bindCopyChips(): void {
   document.addEventListener('click', async (n) => {
     const t = (n.target as Element | null)?.closest?.('[data-copy]') as HTMLElement | null;
     if (!t) return;
@@ -576,7 +587,7 @@ export function bindEndpointChips(): void {
 }
 
 export function renderWsState(state: WsState, latencyMs: number | null): void {
-  bindText('ws', state === 'open' ? 'WS ONLINE' : state === 'connecting' ? 'WS CONNECTING' : 'WS OFFLINE');
+  bindText('ws', state === 'open' ? 'WS CONNECTED' : state === 'connecting' ? 'WS CONNECTING' : 'WS NOT CONNECTED');
   bindText('ws-latency', state === 'open' && latencyMs != null ? `${latencyMs} ms` : DASH);
   setDot('ws', state === 'open' ? 'on' : state === 'connecting' ? 'warn' : 'off');
 }

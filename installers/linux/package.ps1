@@ -2,12 +2,12 @@
 .SYNOPSIS
   Stage SPECTRE Linux payloads and create tar.gz archives under release/
   (Windows-friendly companion to package.sh)
-  Developed by 26 Sig Bn R&D Wing
+  
 #>
 [CmdletBinding()]
 param(
   [string]$RepoRoot = '',
-  [string]$Version = '1.1.1',
+  [string]$Version = '1.1.2',
   [switch]$SkipBuild,
   [ValidateSet('x64', 'arm64', 'both')]
   [string]$Arch = 'both'
@@ -21,7 +21,6 @@ $release = Join-Path $RepoRoot 'release'
 $scriptDir = $PSScriptRoot
 
 Write-Host '==> SPECTRE Linux package'
-Write-Host '    Developed by 26 Sig Bn R&D Wing'
 
 Push-Location $RepoRoot
 try {
@@ -57,7 +56,7 @@ try {
       name = 'spectre'
       version = $Version
       private = $true
-      description = 'SPECTRE local web service — Developed by 26 Sig Bn R&D Wing'
+      description = 'SPECTRE local web service'
       main = 'server/dist/src/index.js'
       dependencies = @{
         '@fastify/static' = '^10.1.10'
@@ -76,7 +75,6 @@ try {
     $note = @"
 SPECTRE Linux payload arch label: $a
 Build host: $hostArch (windows)
-Developed by 26 Sig Bn R&D Wing
 
 If this archive was produced on Windows or a different CPU than the target,
 re-run on the Linux target after extract/install:
@@ -92,17 +90,16 @@ same JS payload; native serialport bindings must be rebuilt on-device.
 
     $readme = @"
 SPECTRE — Linux ($a)
-Developed by 26 Sig Bn R&D Wing
 
 One-command install:
   sudo ./install.sh
 
 Installs to /opt/spectre, enables systemd unit spectre.service, starts service.
-Open: http://127.0.0.1:9000/
+Open: available on port 9000 (or saved httpPort)
 
 Prerequisite: Node.js LTS on PATH.
 Desktop overlay: install.sh also runs npm install in pip-shell/ when a display is available.
-Browser widget always works at http://127.0.0.1:9000/widget.html
+Browser widget always works on the configured listen port
 "@
     Set-Content -Path (Join-Path $payload 'README.txt') -Value $readme -Encoding UTF8
 

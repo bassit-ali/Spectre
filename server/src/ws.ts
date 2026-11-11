@@ -165,6 +165,10 @@ export function attachWebSocket(server: Server, svc: SpectreService, endpoint: E
       case 'serial.connect': {
         const path = String(p.path ?? '');
         if (!path) throw new Error('path required');
+        // Console sends address with connect; apply before open/handshake.
+        if (p.address != null && Number.isFinite(Number(p.address))) {
+          svc.updateSettings({ address: Number(p.address) });
+        }
         await svc.connect(path, Number(p.baudRate) || svc.config.value.baudRate);
         return svc.serialStatus();
       }

@@ -2,15 +2,22 @@
  * Discover Pelco-D-over-UDP turntable on the direct Ethernet link.
  * Binds listeners on common ports, broadcasts query frames, logs replies.
  *
- * Usage: node scripts/discover-udp-ptz.mjs [bindIp]
- * Default bind: 10.55.55.1 (SPECTRE Ethernet static)
+ * Usage: node scripts/lab/discover-udp-ptz.mjs [bindIp]
+ * Env: SPECTRE_ETH_IP (bind), SPECTRE_PTZ_IP (extra unicast target), SPECTRE_UDP_PORT (extra port)
+ * Default bind: 10.55.55.1 (isolated NIC) — factory head seed is often 192.168.8.200:6666
  */
 import dgram from 'node:dgram';
 import os from 'node:os';
 
-const BIND = process.argv[2] || '10.55.55.1';
-const PORTS = [6666, 4000, 5000, 6000, 8000, 8080, 9000, 2300, 4567, 3782, 1024, 1025, 2000, 3000, 3702, 47808];
+const BIND = process.argv[2] || process.env.SPECTRE_ETH_IP || '10.55.55.1';
+const EXTRA_PORT = Number(process.env.SPECTRE_UDP_PORT || 0);
+const PORTS = [
+  6666, 4000, 5000, 6000, 8000, 8080, 9000, 2300, 4567, 3782, 1024, 1025, 2000, 3000, 3702, 47808,
+  ...(Number.isFinite(EXTRA_PORT) && EXTRA_PORT > 0 ? [EXTRA_PORT] : []),
+];
 const TARGETS = [
+  '192.168.8.200',
+  '192.168.8.255',
   '10.55.55.255',
   '10.55.55.50',
   '10.55.55.2',
@@ -23,6 +30,7 @@ const TARGETS = [
   '192.168.0.64',
   '192.168.0.168',
   '255.255.255.255',
+  ...(process.env.SPECTRE_PTZ_IP ? [process.env.SPECTRE_PTZ_IP] : []),
 ];
 
 function checksum(bytes) {

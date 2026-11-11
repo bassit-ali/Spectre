@@ -13,7 +13,11 @@ const SERVER_IP = process.env.SPECTRE_ETH_IP || '10.55.55.1';
 const OFFER_IP = process.env.SPECTRE_PTZ_IP || '10.55.55.50';
 const MASK = '255.255.255.0';
 const LEASE_SECS = 3600;
-const UDP_PORTS = [6666, 4000, 5000, 6000, 8000, 8080, 9000, 2300, 4567, 3782, 2000, 3000];
+const EXTRA_PORT = Number(process.env.SPECTRE_UDP_PORT || 0);
+const UDP_PORTS = [
+  6666, 4000, 5000, 6000, 8000, 8080, 9000, 2300, 4567, 3782, 2000, 3000,
+  ...(Number.isFinite(EXTRA_PORT) && EXTRA_PORT > 0 ? [EXTRA_PORT] : []),
+];
 
 function ipToBuf(ip) {
   return Buffer.from(ip.split('.').map((x) => Number(x) & 0xff));
@@ -152,6 +156,8 @@ for (const p of UDP_PORTS) {
 const frames = [pelco(1, 0x51), pelco(1, 0x53), pelco(1, 0x00)];
 const staticTargets = [
   OFFER_IP,
+  '192.168.8.200',
+  '192.168.8.255',
   '10.55.55.255',
   '192.168.1.64',
   '192.168.1.168',

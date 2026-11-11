@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
+﻿#!/usr/bin/env bash
 # Stage SPECTRE Linux payload and create arch tar.gz archives under release/
-# Developed by 26 Sig Bn R&D Wing
+# 
 #
 # Usage:
 #   ./installers/linux/package.sh              # build + package host arch
@@ -32,12 +32,11 @@ host_arch() {
 }
 
 ARCH="${ARCH:-$(host_arch)}"
-VERSION="${VERSION:-1.1.1}"
+VERSION="${VERSION:-1.1.2}"
 PAYLOAD="${RELEASE}/linux/payload-${ARCH}"
 OUT_TGZ="${RELEASE}/spectre-linux-${ARCH}.tar.gz"
 
 echo "==> SPECTRE Linux package (${ARCH})"
-echo "    Developed by 26 Sig Bn R&D Wing"
 echo "    Root: ${ROOT}"
 
 if [[ "${SKIP_BUILD}" -eq 0 ]]; then
@@ -48,11 +47,11 @@ if [[ "${SKIP_BUILD}" -eq 0 ]]; then
 fi
 
 if [[ ! -f "${ROOT}/server/dist/src/index.js" ]]; then
-  echo "Missing server/dist — build first" >&2
+  echo "Missing server/dist â€” build first" >&2
   exit 1
 fi
 if [[ ! -f "${ROOT}/web/dist/index.html" ]]; then
-  echo "Missing web/dist — build first" >&2
+  echo "Missing web/dist â€” build first" >&2
   exit 1
 fi
 
@@ -88,7 +87,7 @@ cat > "${PAYLOAD}/package.json" <<EOF
   "name": "spectre",
   "version": "${VERSION}",
   "private": true,
-  "description": "SPECTRE local web service — Developed by 26 Sig Bn R&D Wing",
+  "description": "SPECTRE local web service",
   "main": "server/dist/src/index.js",
   "dependencies": {
     "@fastify/static": "^10.1.10",
@@ -107,7 +106,6 @@ NOTE="${PAYLOAD}/ARCH.txt"
 {
   echo "SPECTRE Linux payload arch label: ${ARCH}"
   echo "Build host: $(uname -m) ($(uname -s))"
-  echo "Developed by 26 Sig Bn R&D Wing"
   echo
   echo "If this archive was produced on a different CPU architecture than the"
   echo "target, re-run npm install --omit=dev on the target (or rebuild with"
@@ -119,13 +117,12 @@ NOTE="${PAYLOAD}/ARCH.txt"
 
 cat > "${PAYLOAD}/README.txt" <<EOF
 SPECTRE — Linux (${ARCH})
-Developed by 26 Sig Bn R&D Wing
 
 One-command install:
   sudo ./install.sh
 
 Installs to /opt/spectre, enables systemd unit spectre.service, starts service.
-Open: http://127.0.0.1:9000/
+Open: available on port 9000 (or saved httpPort)
 
 Prerequisite: Node.js LTS on PATH (or bundle runtime/).
 EOF
@@ -153,5 +150,5 @@ echo
 echo "Created: ${OUT_TGZ}"
 echo "Payload: ${PAYLOAD}"
 if [[ "${ARCH}" != "$(host_arch)" ]]; then
-  echo "NOTE: ARCH=${ARCH} differs from host $(host_arch) — native modules may need rebuild on target."
+  echo "NOTE: ARCH=${ARCH} differs from host $(host_arch) â€” native modules may need rebuild on target."
 fi

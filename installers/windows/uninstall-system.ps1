@@ -1,8 +1,7 @@
 ﻿#Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-  Remove the all-users SPECTRE install so development on :9000 is clean.
-  Developed by 26 Sig Bn R&D Wing
+  Remove the all-users SPECTRE install so the listen port is free for development.
 
 .DESCRIPTION
   Stops any SPECTRE node process, deletes Scheduled Task + HKLM Run autostart,
@@ -31,8 +30,7 @@ if (-not (Test-IsAdmin)) {
   throw 'Run elevated (Run as Administrator) to uninstall the system SPECTRE service.'
 }
 
-Write-Host '==> Uninstalling system SPECTRE (free :9000 for development)'
-Write-Host '    Developed by 26 Sig Bn R&D Wing'
+Write-Host '==> Uninstalling system SPECTRE (free listen port for development)'
 
 Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
   Where-Object { $_.CommandLine -match 'SPECTRE|Program Files\\SPECTRE|server\\dist\\src\\index|server/dist/src/index' } |
@@ -59,8 +57,8 @@ if (-not $KeepProgramData -and (Test-Path 'C:\ProgramData\SpectrePT')) {
 }
 
 Write-Host ''
-Write-Host 'System SPECTRE removed — :9000 is free for development.'
+Write-Host 'System SPECTRE removed — listen port is free for development.'
 Write-Host '  npm run server:build && npm run server:start'
-Write-Host '  http://127.0.0.1:9000/'
+Write-Host '  Open the console on the configured listen port (default 9000)'
 Write-Host ''
 Write-Host 'Re-install later: .\release\SPECTRE-Setup.exe'
