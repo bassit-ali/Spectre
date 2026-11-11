@@ -75,7 +75,15 @@ function logLine(kind: 'TX' | 'RX' | 'SYS', text: string): void {
   if (stick) box.scrollTop = box.scrollHeight;
 }
 
-const QUIET: ReadonlySet<string> = new Set(['ping', 'pong', 'pose']);
+const QUIET: ReadonlySet<string> = new Set([
+  'ping',
+  'pong',
+  'pose',
+  'serial.tx',
+  'serial.rx',
+  'system.health',
+  'encoderHealth',
+]);
 
 ws.onTx((m, sent) => {
   if (QUIET.has(String(m.type))) return;
