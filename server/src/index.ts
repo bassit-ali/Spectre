@@ -89,6 +89,7 @@ async function main(): Promise<void> {
     url: `http://${HOST}:${PORT}/`,
     wsUrl: `ws://${HOST}:${PORT}/ws`,
   };
+  svc.setPublicUrl(endpoint.url);
   attachWebSocket(app.server, svc, endpoint);
 
   await app.listen({ host: HOST, port: PORT });
