@@ -2,12 +2,11 @@
 <#
 .SYNOPSIS
   SPECTRE all-users installer (Program Files + autostart).
-  Developed by 26 Sig Bn R&D Wing
 
 .DESCRIPTION
   Copies the staged payload to C:\Program Files\SPECTRE\, creates Start Menu
   shortcuts, registers HKLM Run (user logon) autostart so the desktop overlay
-  can appear, starts the service, and opens http://127.0.0.1:9000/
+  can appear, starts the service, and opens the local console (default port 9000).
 #>
 [CmdletBinding()]
 param(
@@ -18,8 +17,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $ProductName = 'SPECTRE'
-$Publisher = '26 Sig Bn R&D Wing'
-$Tagline = 'Developed by 26 Sig Bn R&D Wing'
+$Publisher = 'SPECTRE'
+$Tagline = 'SPECTRE pan/tilt pedestal controller'
 $Url = 'http://127.0.0.1:9000/'
 $TaskName = 'SPECTRE'
 
@@ -92,7 +91,7 @@ if (-not (Test-Path $launcher)) {
 Set-Content -Path (Join-Path $InstallDir 'BRANDING.txt') -Encoding UTF8 -Value @(
   $ProductName
   $Tagline
-  "Local web service: $Url"
+  'Local web service: available on port 9000 (or saved httpPort)'
 )
 
 # Start Menu (all users)
@@ -157,7 +156,6 @@ Set-Content -Path (Join-Path $InstallDir 'uninstall.ps1') -Value $uninstallPs1 -
 
 Write-Host ""
 Write-Host "Installed to $InstallDir"
-Write-Host "Publisher: $Publisher"
 Write-Host "Autostart: HKLM Run (user logon) — desktop overlay enabled"
 
 if (-not $SkipLaunch) {
@@ -166,4 +164,4 @@ if (-not $SkipLaunch) {
   Start-Process $Url
 }
 
-Write-Host "Open: $Url"
+Write-Host 'Open: available on port 9000 (or saved httpPort)'

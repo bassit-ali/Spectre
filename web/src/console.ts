@@ -1,10 +1,9 @@
 import './styles/spectre.css';
 import {
-  CONSOLE_URL,
-  LOCAL_HTTP,
-  LOCAL_WS,
   PRODUCT,
-  WIDGET_URL,
+  clampHttpPort,
+  resolveHttpPort,
+  resolveLocalWs,
 } from './shared/endpoint';
 import type {
   ClientMsg,
@@ -21,6 +20,7 @@ import {
   TILT_MAX,
   TILT_MIN,
   bindActions,
+  bindCopyChips,
   bindEndpointChips,
   bindHoldJog,
   bindText,
@@ -51,7 +51,7 @@ let status: SerialStatus = { connected: false, path: null, baudRate: 9600, addre
 /** While dragging the sphere, don't let live pose overwrite the aim ball. */
 let sphereDragging = false;
 
-const ws = new SpectreSocket(LOCAL_WS, {
+const ws = new SpectreSocket(resolveLocalWs(), {
   type: 'hello',
   client: 'console',
   version: PRODUCT.version,
@@ -87,7 +87,7 @@ const QUIET: ReadonlySet<string> = new Set([
 
 ws.onTx((m, sent) => {
   if (QUIET.has(String(m.type))) return;
-  logLine('TX', `${sent ? '' : '(DROPPED – offline) '}${JSON.stringify(m)}`);
+  logLine('TX', `${sent ? '' : '(DROPPED – not connected) '}${JSON.stringify(m)}`);
 });
 ws.onAny((m) => {
   if (QUIET.has(String(m.type))) return;
@@ -97,7 +97,7 @@ ws.onAny((m) => {
 /** Send, warning the operator when the server link is down. */
 function tx(msg: ClientMsg, warn = true): boolean {
   const ok = ws.send(msg);
-  if (!ok && warn) toast('SERVER OFFLINE — command not sent', 'warn');
+  if (!ok && warn) toast('SERVER NOT CONNECTED — command not sent', 'warn');
   return ok;
 }
 
@@ -131,15 +131,53 @@ function renderPose(): void {
   }
 }
 
+function parseUdpEndpoint(path: string | undefined | null): { host: string; port: number } | null {
+  if (!path) return null;
+  const m = /^udp:\/\/([^:/]+)(?::(\d+))?\/?$/i.exec(path.trim());
+  if (!m) return null;
+  const port = m[2] ? Number(m[2]) : 6666;
+  if (!Number.isFinite(port) || port < 1 || port > 65535) return null;
+  return { host: m[1], port };
+}
+
+function formatUdpEndpoint(host: string, port: number): string {
+  return `udp://${host.trim()}:${port}`;
+}
+
+function fillUdpFieldsFromPath(udpPath: string | undefined): void {
+  const ep = parseUdpEndpoint(udpPath);
+  const hostEl = byId<HTMLInputElement>('udp-host-input');
+  const portEl = byId<HTMLInputElement>('udp-port-input');
+  if (!ep) return;
+  if (hostEl && document.activeElement !== hostEl) hostEl.value = ep.host;
+  if (portEl && document.activeElement !== portEl) portEl.value = String(ep.port);
+}
+
+function linkStatusLabel(s: SerialStatus): string {
+  if (!(s.connected && s.path)) return 'No Device Connected';
+  const isUdp = s.transport === 'udp' || /^udp:\/\//i.test(s.path);
+  return isUdp ? 'Connected via LAN' : 'Connected via Serial';
+}
+
 function applyStatus(s: SerialStatus): void {
   status = s;
-  bindText('link', s.connected && s.path ? `${s.path} ONLINE` : 'NO LINK');
+  // Status headings never show COM paths or udp://host:port.
+  const isUdp = s.transport === 'udp' || /^udp:\/\//i.test(s.path ?? '');
+  bindText('link', linkStatusLabel(s));
   setDot('link', s.connected ? 'on' : 'off');
   const addrNum = Number.isFinite(s.address) ? Number(s.address) : 1;
-  bindText('bus', `RS-485 · PELCO-D ${s.baudRate || 9600}-8N1 · ADDR ${String(addrNum).padStart(2, '0')}`);
+  bindText(
+    'bus',
+    isUdp
+      ? `LAN · PELCO-D · ADDR ${String(addrNum).padStart(2, '0')}`
+      : `SERIAL · PELCO-D ${s.baudRate || 9600}-8N1 · ADDR ${String(addrNum).padStart(2, '0')}`,
+  );
+  const transportLabel = isUdp && s.connected ? 'LAN' : 'SERIAL';
+  bindText('link-transport', transportLabel);
+  bindText('unit-transport', transportLabel);
 
   const baud = byId<HTMLSelectElement>('serial-baud-select');
-  if (baud && s.connected) baud.value = String(s.baudRate);
+  if (baud && s.connected && !isUdp) baud.value = String(s.baudRate);
   const addrInput = byId<HTMLInputElement>('pelco-address-input');
   if (addrInput && s.connected && document.activeElement !== addrInput) addrInput.value = String(addrNum);
   const sel = byId<HTMLSelectElement>('serial-port-select');
@@ -225,6 +263,22 @@ function bindText2(id: string, text: string): void {
   if (el) el.textContent = text;
 }
 
+/** Sync Enable/Disable button pair (`#${prefix}-enable` / `#${prefix}-disable`). */
+function syncEnableDisable(prefix: string, on: boolean): void {
+  const en = byId(`${prefix}-enable`);
+  const dis = byId(`${prefix}-disable`);
+  const paint = (btn: HTMLElement | null, active: boolean) => {
+    if (!btn) return;
+    btn.setAttribute('aria-pressed', String(active));
+    btn.classList.toggle('bg-primary-container', active);
+    btn.classList.toggle('text-on-primary-container', active);
+    btn.classList.toggle('bg-surface-container', !active);
+    btn.classList.toggle('text-on-surface-variant', !active);
+  };
+  paint(en, on);
+  paint(dis, !on);
+}
+
 function applySettings(s: Settings): void {
   const tMin = s.limits?.tiltMin;
   const tMax = s.limits?.tiltMax;
@@ -251,9 +305,15 @@ function applySettings(s: Settings): void {
     const b = byId<HTMLSelectElement>('serial-baud-select');
     if (b) b.value = String(s.baudRate);
   }
-  if (s.widgetPinned != null) (byId<HTMLInputElement>('widget-pin-check')!).checked = s.widgetPinned;
-  if (s.widgetVisible != null) (byId<HTMLInputElement>('widget-visible-check')!).checked = s.widgetVisible;
-  if (s.widgetAutoDock != null) (byId<HTMLInputElement>('widget-autodock-check')!).checked = s.widgetAutoDock;
+  if (s.widgetVisible != null) syncEnableDisable('widget-visible', s.widgetVisible);
+  if (s.widgetPinned != null) syncEnableDisable('widget-pin', s.widgetPinned);
+  if (s.widgetAutoDock != null) syncEnableDisable('widget-autodock', s.widgetAutoDock);
+  if (s.httpPort != null) bindEndpointChips(s.httpPort);
+  if (s.udpPath) fillUdpFieldsFromPath(s.udpPath);
+  const preferUdp = byId<HTMLInputElement>('prefer-udp-check');
+  if (preferUdp && s.preferUdp != null && document.activeElement !== preferUdp) {
+    preferUdp.checked = Boolean(s.preferUdp);
+  }
   syncLandingResUi(s.approach?.deadband);
   bindText('settings-sync', 'SYNCED');
 }
@@ -426,7 +486,7 @@ bindActions({
   'serial-connect': () => {
     const path = byId<HTMLSelectElement>('serial-port-select')?.value ?? '';
     if (!path) {
-      toast('SELECT A SERIAL PORT', 'warn');
+      toast('SELECT A PORT / ENDPOINT', 'warn');
       return;
     }
     const baudRate = parseInt(byId<HTMLSelectElement>('serial-baud-select')?.value ?? '9600', 10);
@@ -441,6 +501,25 @@ bindActions({
   },
   'serial-baud': () => {
     /* applied on Connect */
+  },
+  'eth-apply': () => {
+    const host = (byId<HTMLInputElement>('udp-host-input')?.value ?? '').trim();
+    const port = parseInt(byId<HTMLInputElement>('udp-port-input')?.value ?? '6666', 10);
+    if (!host) {
+      toast('ENTER ETHERNET IP', 'warn');
+      return;
+    }
+    if (!Number.isFinite(port) || port < 1 || port > 65535) {
+      toast('UDP PORT 1–65535', 'warn');
+      return;
+    }
+    const udpPath = formatUdpEndpoint(host, port);
+    const preferUdp = Boolean(byId<HTMLInputElement>('prefer-udp-check')?.checked);
+    if (!tx({ type: 'settings.update', patch: { udpPath, preferUdp } })) return;
+    tx({ type: 'serial.list' });
+    const sel = byId<HTMLSelectElement>('serial-port-select');
+    if (sel) sel.value = udpPath;
+    toast('ETHERNET SETTINGS APPLIED');
   },
   'pelco-address': (el, ev) => {
     if (ev.type !== 'change') return;
@@ -469,21 +548,32 @@ bindActions({
 
   /* ---- widget (real Windows always-on-top overlay via pip-shell) ---- */
   'open-widget': () => {
+    // Enable + open; UI syncs from settings ack (do not flip Enable optimistically).
     if (!tx({ type: 'widget.open', source: 'console' })) return;
     toast('OPENING DESKTOP WIDGET');
-    const check = byId<HTMLInputElement>('widget-visible-check');
-    if (check) check.checked = true;
   },
   'widget-visible': (el) => {
-    const on = (el as HTMLInputElement).checked;
+    const on = el.dataset.on !== 'false';
     if (on) tx({ type: 'widget.open', source: 'console' });
     else tx({ type: 'widget.close', source: 'console' });
   },
   'widget-pin': (el) => {
-    tx({ type: 'widget.pinned', pinned: (el as HTMLInputElement).checked });
+    const on = el.dataset.on !== 'false';
+    tx({ type: 'widget.pinned', pinned: on });
   },
   'widget-autodock': (el) => {
-    tx({ type: 'settings.update', patch: { widgetAutoDock: (el as HTMLInputElement).checked } });
+    const on = el.dataset.on !== 'false';
+    tx({ type: 'settings.update', patch: { widgetAutoDock: on } });
+  },
+
+  /* ---- local HTTP/WS listen port (persisted; applies on restart) ---- */
+  'http-port': (el, ev) => {
+    if (ev.type !== 'change') return;
+    const port = clampHttpPort((el as HTMLInputElement).value);
+    (el as HTMLInputElement).value = String(port);
+    if (!tx({ type: 'settings.update', patch: { httpPort: port } })) return;
+    bindEndpointChips(port);
+    toast(`PORT ${port} SAVED — restart SPECTRE to apply`, 'info');
   },
 
   /* ---- unit info ---- */
@@ -497,7 +587,7 @@ bindActions({
     }
     window.clearTimeout(selfTestTimer);
     if (!tx({ type: 'selftest.run' }, false)) {
-      if (st) st.textContent = 'SERVER OFFLINE';
+      if (st) st.textContent = 'SERVER NOT CONNECTED';
       return;
     }
     selfTestTimer = window.setTimeout(() => {
@@ -534,7 +624,15 @@ ws.on('pose', (m: Extract<ServerMsg, { type: 'pose' }>) => {
   pose = { pan: m.pan, tilt: m.tilt, panRaw: m.panRaw, tiltRaw: m.tiltRaw, updatedAt: m.updatedAt };
   renderPose();
 });
-ws.on('status', (m) => applyStatus({ connected: m.connected, path: m.path, baudRate: m.baudRate, address: m.address }));
+ws.on('status', (m) =>
+  applyStatus({
+    connected: m.connected,
+    path: m.path,
+    baudRate: m.baudRate,
+    address: m.address,
+    transport: (m as { transport?: 'serial' | 'udp' }).transport,
+  }),
+);
 ws.on('ports', (m) => applyPorts(m.ports));
 ws.on('presets', (m) => applyPresets(m.presets, m.active));
 ws.on('settings', (m) => applySettings(m.settings));
@@ -543,7 +641,7 @@ ws.on('error', (m) => toast(`SERVER: ${m.message}`, 'warn'));
 
 ws.onState((s) => {
   renderWsState(s, ws.latencyMs);
-  logLine('SYS', `ws ${s} ${LOCAL_WS}`);
+  logLine('SYS', `ws ${s} · port ${resolveHttpPort()}`);
   if (s === 'open') {
     ws.send({ type: 'serial.list' });
     ws.send({ type: 'settings.get' });
@@ -560,18 +658,9 @@ window.setInterval(() => renderWsState(ws.state, ws.latencyMs), 1000);
 /* Boot                                                                   */
 /* ====================================================================== */
 
+bindCopyChips();
 bindEndpointChips();
 bindText('app-version', `v${PRODUCT.version}`);
-
-// Unit Info URL rows
-const urlMap: Record<string, string> = { ws: LOCAL_WS, console: CONSOLE_URL, widget: WIDGET_URL };
-qsa('[data-url]').forEach((el) => {
-  const url = urlMap[el.dataset.url ?? ''];
-  if (!url) return;
-  el.textContent = url;
-  const parent = el.closest<HTMLElement>('[data-copy]');
-  if (parent) parent.dataset.copy = url;
-});
 
 refreshSettingLabels();
 paintSectorBadges('console');
@@ -624,5 +713,5 @@ renderWsState(ws.state, ws.latencyMs);
   });
 }
 
-logLine('SYS', `SPECTRE console ${PRODUCT.version} · endpoint ${LOCAL_HTTP}`);
+logLine('SYS', `SPECTRE console ${PRODUCT.version} · available on port ${resolveHttpPort()}`);
 ws.connect();

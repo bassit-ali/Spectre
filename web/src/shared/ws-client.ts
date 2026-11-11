@@ -1,4 +1,4 @@
-import { LOCAL_WS } from './endpoint';
+import { resolveLocalWs } from './endpoint';
 
 export type WsState = 'connecting' | 'open' | 'closed';
 type Listener<T> = (v: T) => void;
@@ -149,7 +149,7 @@ function normalizeIn(raw: WireIn): WireIn {
 }
 
 /**
- * Auto-reconnecting WebSocket for ws://127.0.0.1:9000/ws.
+ * Auto-reconnecting WebSocket for the local SPECTRE /ws endpoint.
  * Translates UI-friendly messages to the server {type,payload,id} contract.
  */
 export class SpectreSocket {
@@ -169,7 +169,7 @@ export class SpectreSocket {
   private txHandlers = new Set<(m: Record<string, unknown>, sent: boolean) => void>();
 
   constructor(
-    private readonly url: string = LOCAL_WS,
+    private readonly url: string = resolveLocalWs(),
     private readonly hello?: Record<string, unknown>,
   ) {}
 

@@ -166,7 +166,6 @@ async function sectionHttp() {
   const index = await httpGet('/');
   const consoleIds = [
     'app-header',
-    'header-credit',
     'header-halt-btn',
     'header-open-widget-btn',
     'home-btn',
@@ -235,7 +234,8 @@ async function sectionHttp() {
   assert('widget no fine pan bars', !widget.text.includes('id="widget-pan-minus"') && !widget.text.includes('id="widget-pan-plus"'));
   assert('widget pin in header', widget.text.includes('id="widget-pin-btn"'));
   assert('widget tilt ±50', /±50°/.test(widget.text) && /min="-50"/.test(widget.text) && /max="50"/.test(widget.text));
-  assert('widget credit footer only', /DEVELOPED BY 26 SIG/.test(widget.text) && !widget.text.includes('widget-opacity'));
+  assert('widget no credit footer', !/26 SIG|R&D WING/i.test(widget.text));
+  assert('widget opacity chrome', widget.text.includes('id="widget-opacity-slider"') && widget.text.includes('id="widget-opacity-btn"'));
   assert('widget offline banner present', widget.text.includes('id="widget-offline-banner"') && /No device connected/i.test(widget.text));
   assert('widget open-console action', widget.text.includes('data-action="open-console"'));
 
@@ -269,7 +269,15 @@ async function sectionWsApi() {
     assert('tilt limits ±50', limits?.tiltMin === -50 && limits?.tiltMax === 50, JSON.stringify(limits));
 
     const ports = await send('serial.list');
-    assert('serial.list', Array.isArray(ports) && ports.some((p) => /COM13/i.test(p.path || '')));
+    // Prefer SPECTRE_DEVICE (COM / udp://…). Do not use SPECTRE_PORT — that is the HTTP listen port.
+    const wantPort = process.env.SPECTRE_DEVICE || '';
+    const hasListed =
+      Array.isArray(ports) &&
+      ports.length > 0 &&
+      (wantPort
+        ? ports.some((p) => String(p.path || '').toLowerCase() === wantPort.toLowerCase())
+        : ports.some((p) => /COM\d+|ttyUSB|ttyACM|udp:\/\//i.test(p.path || '')));
+    assert('serial.list', hasListed, wantPort ? `want ${wantPort}` : `${ports?.length ?? 0} port(s)`);
 
     const st = await send('serial.status');
     assert('serial.status connected', !!st?.connected, st?.path);

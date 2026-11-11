@@ -161,6 +161,9 @@ export class MotionController extends EventEmitter {
       limits: { ...this.settings.limits, ...(patch.limits || {}) },
       approach: { ...this.settings.approach, ...(patch.approach || {}) },
     };
+    // Pelco-D address is 1..255.
+    const addr = Math.round(Number(this.settings.address));
+    this.settings.address = Number.isFinite(addr) ? Math.max(1, Math.min(255, addr)) : 1;
     // Pan revolution lock stays hard-coded internally.
     this.settings.limits.panMin = PAN_TRAVEL_MIN;
     this.settings.limits.panMax = PAN_TRAVEL_MAX;

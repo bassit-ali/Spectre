@@ -1,5 +1,4 @@
 ; SPECTRE — Windows all-users installer (NSIS)
-; Developed by 26 Sig Bn R&D Wing
 ;
 ; Build (from repo root, after staging payload):
 ;   makensis /DPRODUCT_VERSION=1.0.0 installers\windows\Spectre.nsi
@@ -8,12 +7,12 @@
 ;   server\dist\, web\dist\, pip-shell\, node_modules\, package.json, spectre.cmd, install.ps1
 
 !ifndef PRODUCT_VERSION
-  !define PRODUCT_VERSION "1.1.0"
+  !define PRODUCT_VERSION "1.1.2"
 !endif
 
 !define PRODUCT_NAME "SPECTRE"
-!define PRODUCT_PUBLISHER "26 Sig Bn R&D Wing"
-!define PRODUCT_TAGLINE "Developed by 26 Sig Bn R&D Wing"
+!define PRODUCT_PUBLISHER "SPECTRE"
+!define PRODUCT_TAGLINE "SPECTRE pan/tilt pedestal controller"
 !define PRODUCT_URL "http://127.0.0.1:9000/"
 !define INSTALL_DIR "$PROGRAMFILES64\SPECTRE"
 !define REG_UNINSTALL "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
@@ -79,7 +78,7 @@ Section "SPECTRE" SecMain
   FileOpen $0 "$INSTDIR\BRANDING.txt" w
   FileWrite $0 "${PRODUCT_NAME}$\r$\n"
   FileWrite $0 "${PRODUCT_TAGLINE}$\r$\n"
-  FileWrite $0 "Local web service: ${PRODUCT_URL}$\r$\n"
+  FileWrite $0 "Local web service: available on port 9000 (or saved httpPort)$\r$\n"
   FileClose $0
 
   ; Start Menu

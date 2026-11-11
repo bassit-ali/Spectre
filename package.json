@@ -1,6 +1,6 @@
 {
-  "name": "pelco-pt",
-  "version": "1.1.1",
+  "name": "spectre",
+  "version": "1.1.2",
   "description": "SPECTRE — Pelco-D pan/tilt pedestal controller (local web console + Electron overlay).",
   "main": "server/dist/src/index.js",
   "author": "bassit-ali",
@@ -22,85 +22,35 @@
     "electron",
     "fastify"
   ],
-
   "scripts": {
-    "dev": "vite",
-    "build:renderer": "vite build",
-    "build:electron": "tsc -p tsconfig.electron.json",
-    "build": "npm run build:renderer && npm run build:electron",
-    "rebuild": "electron-rebuild -f -w serialport",
-    "postinstall": "electron-builder install-app-deps",
-    "start": "npm run build && electron .",
-    "pack:dir": "npm run build && electron-builder --dir",
-    "pack:win": "npm run build && electron-builder --win zip",
-    "pack:linux": "npm run build && electron-builder --linux tar.gz",
-    "probe": "node scripts/probe-com.mjs",
-    "test:regression": "node scripts/regression-full.mjs && node scripts/regression-ux.mjs",
-    "test:ux": "node scripts/regression-ux.mjs",
-    "presets:sectors": "node scripts/set-sector-presets.mjs",
+    "build": "npm run web:build && npm run server:build",
+    "web:build": "npm --prefix web run build",
+    "web:dev": "npm --prefix web run dev",
     "server:build": "tsc -p tsconfig.server.json",
     "server:start": "node server/dist/src/index.js",
     "dev:server": "tsx watch server/src/index.ts",
-    "spectre:uninstall": "powershell -ExecutionPolicy Bypass -File ./installers/windows/uninstall-system.ps1",
-    "pip:start": "npm --prefix pip-shell start"
+    "pip:start": "npm --prefix pip-shell start",
+    "rebuild:serial": "npm rebuild serialport",
+    "probe": "node scripts/probe-com.mjs",
+    "test:regression": "node scripts/regression-full.mjs && node scripts/regression-ux.mjs",
+    "test:ux": "node scripts/regression-ux.mjs",
+    "test:transport": "npm run server:build && node scripts/transport-parity.mjs",
+    "presets:sectors": "node scripts/set-sector-presets.mjs",
+    "pack:docs": "powershell -ExecutionPolicy Bypass -File ./installers/common/build-install-guide.ps1",
+    "pack:win": "powershell -ExecutionPolicy Bypass -File ./installers/windows/build.ps1 && npm run pack:docs",
+    "pack:linux": "powershell -ExecutionPolicy Bypass -File ./installers/linux/package.ps1 && npm run pack:docs",
+    "spectre:uninstall": "powershell -ExecutionPolicy Bypass -File ./installers/windows/uninstall-system.ps1"
   },
   "dependencies": {
     "@fastify/static": "^10.1.10",
-    "electron-store": "^8.2.0",
     "fastify": "^5.12.8",
     "serialport": "^12.0.0",
     "ws": "^8.22.2"
   },
   "devDependencies": {
-    "@electron/rebuild": "^3.7.1",
     "@types/node": "^22.10.0",
     "@types/ws": "^8.18.2",
-    "electron": "^33.2.0",
-    "electron-builder": "^25.1.8",
     "tsx": "^4.23.15",
-    "typescript": "^5.7.2",
-    "vite": "^6.0.3"
-  },
-  "build": {
-    "appId": "com.pelcopt.controller",
-    "productName": "PelcoPT",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "dist-electron/**/*",
-      "assets/**/*",
-      "package.json"
-    ],
-    "extraResources": [
-      {
-        "from": "scripts",
-        "to": "scripts",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": "extension",
-        "to": "extension",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "win": {
-      "target": [
-        "zip"
-      ],
-      "artifactName": "pelco-pt-win-x64.${ext}"
-    },
-    "linux": {
-      "target": [
-        "tar.gz"
-      ],
-      "category": "Utility",
-      "artifactName": "pelco-pt-linux-x64.${ext}"
-    }
+    "typescript": "^5.7.2"
   }
 }

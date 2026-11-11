@@ -1,9 +1,9 @@
 import { EventEmitter } from 'events';
 import fs from 'fs';
-import { PortManager, PortInfo } from '../shared/portManager';
+import { PortManager, PortInfo, parseUdpPath } from '../shared/portManager';
 import { MotionController, ControllerSettings, Pose } from '../shared/controller';
 import { MoveFlags, PresetId, PRESET_IDS, queryPan, queryTilt } from '../shared/pelcoD';
-import { AppConfig, ConfigStore, PresetMeta, snapLandingResolution } from './config';
+import { AppConfig, ConfigStore, PresetMeta, clampHttpPort, snapLandingResolution } from './config';
 import { PipShellManager } from './pipShell';
 
 export type OutMessage = { type: string; payload?: unknown };
@@ -157,7 +157,14 @@ export class SpectreService extends EventEmitter {
 
   /** Wire the always-on-top desktop pip-shell (Windows overlay). */
   initPipShell(projectRoot: string, widgetUrl: string): void {
-    this.pipShell = new PipShellManager(projectRoot, (level, msg) => this.log(level, msg), widgetUrl);
+    this.pipShell = new PipShellManager(
+      projectRoot,
+      (level, msg) => this.log(level, msg),
+      widgetUrl,
+      () => this.config.value.widgetAutoDock,
+      () => this.config.value.widgetPinned,
+      () => this.config.value.widgetOpacity,
+    );
     if (this.config.value.widgetVisible) {
       void this.openDesktopWidget();
     }
@@ -166,13 +173,20 @@ export class SpectreService extends EventEmitter {
   /** Desktop overlay opens regardless of RS-485 link state. */
   async openDesktopWidget(): Promise<{ ok: boolean; detail: string }> {
     if (!this.pipShell) {
+      this.out('settings', this.settingsView());
       return { ok: false, detail: 'pip-shell not configured' };
     }
     // Serial may be down — still launch so the UI can show "no device connected".
     const result = await this.pipShell.open();
     if (result.ok) {
       this.config.update({ widgetVisible: true });
-      this.out('settings', this.settingsView());
+    } else if (!this.pipShell.running) {
+      // Failed launch — keep Enable in sync with reality.
+      this.config.update({ widgetVisible: false });
+    }
+    this.out('settings', this.settingsView());
+    if (!result.ok) {
+      this.out('error', { message: `Widget open failed: ${result.detail}` });
     }
     return result;
   }
@@ -209,7 +223,7 @@ export class SpectreService extends EventEmitter {
 
     port.on('status', () => {
       this.out('serial.status', this.serialStatus());
-      if (!port.getStatus().connected) this.markEncoders(false, 'serial disconnected');
+      if (!port.getStatus().connected) this.markEncoders(false, 'link disconnected');
     });
     // Raw bus hex is debug-only. Broadcasting every TX/RX frame to all WS clients
     // will unbounded-buffer (and OOM) if a browser/Electron tab stops reading.
@@ -264,10 +278,13 @@ export class SpectreService extends EventEmitter {
       lastPort: c.lastPort,
       baudRate: c.baudRate,
       autoConnect: c.autoConnect,
+      udpPath: c.udpPath,
+      preferUdp: c.preferUdp,
       widgetOpacity: c.widgetOpacity,
       widgetPinned: c.widgetPinned,
       widgetVisible: c.widgetVisible,
       widgetAutoDock: c.widgetAutoDock,
+      httpPort: c.httpPort,
     };
   }
 
@@ -300,7 +317,7 @@ export class SpectreService extends EventEmitter {
     const moving = this.motion.isBusy() || this.mode === 'goto' || this.mode === 'jogging';
     const healthy = connected && e.handshakeOk && (fresh || moving);
     let reason: string | null = null;
-    if (!connected) reason = 'serial disconnected';
+    if (!connected) reason = 'link disconnected';
     else if (!e.handshakeOk) reason = 'handshake not completed';
     else if (!fresh && !moving) reason = 'encoder replies stale';
     if (healthy !== e.healthy || reason !== e.reason) {
@@ -439,31 +456,35 @@ export class SpectreService extends EventEmitter {
 
   // ----------------------------------------------------------------- serial
 
-  async listPorts(): Promise<PortInfo[]> {
-    return PortManager.listPorts();
+  /** COM ports plus the currently configured UDP endpoint (user-editable; not hardcoded). */
+  private withConfiguredUdp(ports: PortInfo[]): PortInfo[] {
+    const udpPath = this.config.value.udpPath?.trim();
+    if (!udpPath || !/^udp:\/\//i.test(udpPath)) return ports;
+    if (ports.some((p) => p.path.toLowerCase() === udpPath.toLowerCase())) return ports;
+    return [
+      ...ports,
+      {
+        path: udpPath,
+        manufacturer: 'SPECTRE',
+        friendlyName: `Ethernet Pelco-D (UDP) ${udpPath}`,
+      },
+    ];
   }
 
-  /** Pick a port (UDP Ethernet → remembered → CH340/COM13/ttyUSB) and connect. */
+  async listPorts(): Promise<PortInfo[]> {
+    const ports = await PortManager.listPorts();
+    return this.withConfiguredUdp(ports);
+  }
+
+  /** Pick a port (remembered → CH340/COM13/ttyUSB; UDP only when preferUdp). */
   async autoConnect(opts: { quiet?: boolean } = {}): Promise<string | null> {
     const cfg = this.config.value;
     let ports: PortInfo[];
     try {
-      ports = await PortManager.listPorts();
+      ports = await this.listPorts();
     } catch (err) {
       if (!opts.quiet) this.log('error', `port enumeration failed: ${String(err)}`);
       return null;
-    }
-    // UDP only if explicitly preferred and lastPort/udpPath is already selected — not exposed in UI yet.
-    if (
-      cfg.preferUdp &&
-      cfg.udpPath &&
-      !ports.some((p) => p.path.toLowerCase() === cfg.udpPath.toLowerCase())
-    ) {
-      ports.unshift({
-        path: cfg.udpPath,
-        manufacturer: 'SPECTRE',
-        friendlyName: `Ethernet Pelco-D ${cfg.udpPath}`,
-      });
     }
     const candidates = rankPorts(ports, cfg.lastPort, {
       preferUdp: cfg.preferUdp,
@@ -511,9 +532,10 @@ export class SpectreService extends EventEmitter {
     this.userDisconnected = true;
     this.motion.stopPolling();
     await this.motion.stop().catch(() => undefined);
+    const wasUdp = this.port.getStatus().transport === 'udp';
     await this.port.close();
-    this.markEncoders(false, 'serial disconnected');
-    this.log('info', 'serial disconnected');
+    this.markEncoders(false, 'link disconnected');
+    this.log('info', wasUdp ? 'UDP disconnected' : 'serial disconnected');
   }
 
   /** Query pan (0x51) and tilt (0x53) and wait for 0x59/0x5B replies. */
@@ -528,12 +550,12 @@ export class SpectreService extends EventEmitter {
       for (let i = 0; i < attempts && !(panOk && tiltOk); i += 1) {
         if (!this.port.getStatus().connected) break;
         if (!panOk) {
-          const wait = this.waitPosition('pan', 700);
+          const wait = this.waitPosition('pan', 700, addr);
           await this.port.write(queryPan(addr)).catch(() => undefined);
           panOk = await wait;
         }
         if (!tiltOk) {
-          const wait = this.waitPosition('tilt', 700);
+          const wait = this.waitPosition('tilt', 700, addr);
           await this.port.write(queryTilt(addr)).catch(() => undefined);
           tiltOk = await wait;
         }
@@ -561,10 +583,21 @@ export class SpectreService extends EventEmitter {
     }
   }
 
-  private waitPosition(kind: 'pan' | 'tilt', timeoutMs: number): Promise<boolean> {
+  private waitPosition(
+    kind: 'pan' | 'tilt',
+    timeoutMs: number,
+    expectAddress?: number,
+  ): Promise<boolean> {
     return new Promise((resolve) => {
-      const onPos = (pos: { kind: string }) => {
+      const onPos = (pos: { kind: string; address?: number }) => {
         if (pos.kind !== kind) return;
+        if (
+          expectAddress != null &&
+          pos.address != null &&
+          pos.address !== expectAddress
+        ) {
+          return;
+        }
         cleanup();
         resolve(true);
       };
@@ -629,7 +662,7 @@ export class SpectreService extends EventEmitter {
       // settings sanity
       const s = this.motion.getSettings() as ControllerSettings;
       const settingsOk =
-        s.address >= 0 &&
+        s.address >= 1 &&
         s.address <= 255 &&
         s.limits.panMin === -180 &&
         s.limits.panMax === 180 &&
@@ -639,7 +672,7 @@ export class SpectreService extends EventEmitter {
       // serial enumeration
       let ports: PortInfo[] = [];
       try {
-        ports = await PortManager.listPorts();
+        ports = await this.listPorts();
         add('serial.enumerate', true, `${ports.length} port(s): ${ports.map((p) => p.path).join(', ') || '-'}`);
       } catch (err) {
         add('serial.enumerate', false, String(err));
@@ -648,11 +681,19 @@ export class SpectreService extends EventEmitter {
       const candidates = rankPorts(ports, this.config.value.lastPort, {
         preferUdp: this.config.value.preferUdp,
         udpPath: this.config.value.udpPath,
-      });
+      }).filter((p) => this.config.value.preferUdp || !/^udp:\/\//i.test(p.path));
+      // Already-open link (incl. manually selected UDP) satisfies candidate for BIT.
+      // Auto-connect still ignores UDP unless preferUdp — that filter is intentional.
+      const openPath = this.port.getStatus().path;
+      const candidateOk = candidates.length > 0 || !!this.port.getStatus().connected;
       add(
         'serial.candidate',
-        candidates.length > 0,
-        candidates.length ? candidates.map((p) => p.path).join(', ') : 'no UDP/CH340/COM13 candidate',
+        candidateOk,
+        this.port.getStatus().connected && openPath
+          ? `open ${openPath}`
+          : candidates.length
+            ? candidates.map((p) => p.path).join(', ')
+            : 'no UDP/CH340/COM13 candidate',
       );
 
       // open
@@ -667,7 +708,12 @@ export class SpectreService extends EventEmitter {
         await this.handshake();
       }
       const st = this.port.getStatus();
-      add('serial.open', st.connected, st.connected ? `${st.path} @ ${st.baudRate}` : 'not connected');
+      const openDetail = !st.connected
+        ? 'not connected'
+        : st.transport === 'udp'
+          ? `UDP ${st.path}`
+          : `serial ${st.path} @ ${st.baudRate}`;
+      add('serial.open', st.connected, openDetail);
 
       // encoders
       const e = this.encoder;
@@ -756,17 +802,28 @@ export class SpectreService extends EventEmitter {
     if (typeof patch.autoConnect === 'boolean') cfgPatch.autoConnect = patch.autoConnect;
     if (typeof patch.baudRate === 'number') cfgPatch.baudRate = patch.baudRate;
     if (typeof patch.lastPort === 'string') cfgPatch.lastPort = patch.lastPort;
+    if (typeof patch.preferUdp === 'boolean') cfgPatch.preferUdp = patch.preferUdp;
+    if (typeof patch.udpPath === 'string') {
+      const raw = patch.udpPath.trim();
+      if (/^udp:\/\//i.test(raw) && parseUdpPath(raw)) {
+        cfgPatch.udpPath = raw.replace(/\/$/, '');
+      } else {
+        throw new Error('udpPath must look like udp://host:port');
+      }
+    }
     if (typeof patch.widgetOpacity === 'number') {
       cfgPatch.widgetOpacity = Math.max(0.4, Math.min(1, patch.widgetOpacity));
     }
     if (typeof patch.widgetPinned === 'boolean') cfgPatch.widgetPinned = patch.widgetPinned;
     if (typeof patch.widgetVisible === 'boolean') cfgPatch.widgetVisible = patch.widgetVisible;
     if (typeof patch.widgetAutoDock === 'boolean') cfgPatch.widgetAutoDock = patch.widgetAutoDock;
+    if (patch.httpPort !== undefined) cfgPatch.httpPort = clampHttpPort(patch.httpPort);
     this.config.update(cfgPatch);
     if (typeof patch.widgetVisible === 'boolean') {
       if (patch.widgetVisible) void this.openDesktopWidget();
       else void this.closeDesktopWidget();
     }
+    // Auto-dock is applied by the widget overlay via settings push + shell IPC.
     const view = this.settingsView();
     this.out('settings', view);
     return view;
@@ -774,12 +831,18 @@ export class SpectreService extends EventEmitter {
 
   // ----------------------------------------------------------------- motion
 
+  /** Gate motion / queries on an open RS-485 or UDP link. */
+  private requireLink(): void {
+    if (!this.port.getStatus().connected) throw new Error('Link is not connected');
+  }
+
+  /** @deprecated alias — prefer requireLink */
   private requireSerial(): void {
-    if (!this.port.getStatus().connected) throw new Error('Serial port is not connected');
+    this.requireLink();
   }
 
   private requireEncoders(what: string): void {
-    this.requireSerial();
+    this.requireLink();
     this.evaluateEncoders();
     // Handshake is the hard gate. Soft-stale after a move is OK — we re-query inside goto.
     if (!this.encoder.handshakeOk) {
@@ -791,7 +854,7 @@ export class SpectreService extends EventEmitter {
   }
 
   async jog(flags: MoveFlags): Promise<void> {
-    this.requireSerial();
+    this.requireLink();
     if (!this.encoder.healthy) {
       this.log('warn', 'jog with unhealthy encoders: pan revolution lock is NOT reliable');
     }
@@ -876,7 +939,7 @@ export class SpectreService extends EventEmitter {
   }
 
   async refresh(): Promise<Pose> {
-    this.requireSerial();
+    this.requireLink();
     // Debounce client pose.refresh spam (console + widget + pip-shell all ask on connect).
     const now = Date.now();
     if (this.motion.isBusy() || now - this.lastRefreshAt < 200) {
@@ -922,7 +985,7 @@ export class SpectreService extends EventEmitter {
 
   callPreset(idRaw: unknown): void {
     const id = this.presetId(idRaw);
-    this.requireSerial();
+    this.requireLink();
     const meta = this.config.value.presets.find((p) => p.id === id);
     const stored = !!meta && (meta.panTravel != null || meta.pan != null || meta.tilt != null);
     if (stored) this.requireEncoders('preset.call');

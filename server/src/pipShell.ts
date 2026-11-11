@@ -14,6 +14,9 @@ export class PipShellManager {
     private readonly projectRoot: string,
     private readonly log: (level: 'info' | 'warn' | 'error', msg: string) => void,
     private readonly widgetUrl: string,
+    private readonly getAutoDock: () => boolean = () => true,
+    private readonly getPinned: () => boolean = () => true,
+    private readonly getOpacity: () => number = () => 0.95,
   ) {}
 
   get running(): boolean {
@@ -32,7 +35,7 @@ export class PipShellManager {
       !process.env.DISPLAY &&
       !process.env.WAYLAND_DISPLAY
     ) {
-      return { ok: false, detail: 'no display — open http://127.0.0.1:9000/widget.html' };
+      return { ok: false, detail: 'no display — open the widget page on the SPECTRE listen port' };
     }
     this.starting = true;
     try {
@@ -56,12 +59,19 @@ export class PipShellManager {
         ? `${this.widgetUrl}&bg=transparent`
         : `${this.widgetUrl}?bg=transparent`;
 
-      this.log('info', `starting pip-shell → ${url}`);
+      const opacity = Math.max(0.4, Math.min(1, Number(this.getOpacity()) || 0.95));
+      this.log(
+        'info',
+        `starting pip-shell (auto-dock=${this.getAutoDock() ? 'on' : 'off'} pin=${this.getPinned() ? 'on' : 'off'} opacity=${opacity})`,
+      );
       const child = spawn(electronExec, ['.'], {
         cwd: pipDir,
         env: {
           ...process.env,
           SPECTRE_WIDGET_URL: url,
+          SPECTRE_WIDGET_AUTO_DOCK: this.getAutoDock() ? '1' : '0',
+          SPECTRE_WIDGET_PINNED: this.getPinned() ? '1' : '0',
+          SPECTRE_WIDGET_OPACITY: String(opacity),
         },
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
