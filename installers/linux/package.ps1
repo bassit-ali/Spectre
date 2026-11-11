@@ -48,6 +48,7 @@ try {
     Copy-Item (Join-Path $scriptDir 'spectre.sh') (Join-Path $payload 'spectre.sh') -Force
     Copy-Item (Join-Path $scriptDir 'spectre.service') (Join-Path $payload 'spectre.service') -Force
     Copy-Item (Join-Path $scriptDir 'install.sh') (Join-Path $payload 'install.sh') -Force
+    Copy-Item (Join-Path $RepoRoot 'installers\common\OS-PREREQS.txt') (Join-Path $payload 'OS-PREREQS.txt') -Force
 
     # Official Node binary for this arch (offline — no system Node required)
     $nodePlat = if ($a -eq 'arm64') { 'linux-arm64' } else { 'linux-x64' }
@@ -113,11 +114,18 @@ SPECTRE — Linux ($a)
 
 Fully offline install (Node + npm deps + Electron bundled):
   sudo ./install.sh
+  # then log out/in once so dialout group applies
 
 Installs to /opt/spectre, enables systemd unit spectre.service, starts service.
 Open: http://127.0.0.1:9000/
-Desktop overlay uses the packaged Electron binary when a display session is available.
-Browser widget always works on the listen port.
+
+NOT in this archive (OS / hardware — set up once):
+  - USB-serial driver/modules so /dev/ttyUSB* or /dev/ttyACM* appears
+  - systemd (normal on Pi OS / Ubuntu / Debian)
+  - dialout membership (install.sh adds you; re-login required)
+  - Desktop session only if you want the Electron overlay (browser widget always works)
+
+See docs/INSTALL.md "OS / hardware setup" in the repo or SPECTRE-Install-Guide.pdf.
 "@
     Set-Content -Path (Join-Path $payload 'README.txt') -Value $readme -Encoding UTF8
 

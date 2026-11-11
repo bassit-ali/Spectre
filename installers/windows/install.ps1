@@ -157,6 +157,12 @@ Set-Content -Path (Join-Path $InstallDir 'uninstall.ps1') -Value $uninstallPs1 -
 Write-Host ""
 Write-Host "Installed to $InstallDir"
 Write-Host "Autostart: HKLM Run (user logon) — desktop overlay enabled"
+Write-Host ""
+Write-Host "OS pieces this package cannot ship (set up once):"
+Write-Host "  - USB-serial driver so Device Manager shows a healthy COMx"
+Write-Host "  - Administrator was required for this install (done)"
+Write-Host "  - Desktop session for Electron overlay (browser widget always works)"
+Write-Host "  See OS-PREREQS.txt in the install folder / SPECTRE-Install-Guide.pdf"
 
 if (-not $SkipLaunch) {
   Start-Process -FilePath $launcher -WorkingDirectory $InstallDir -WindowStyle Minimized
