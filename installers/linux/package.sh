@@ -63,6 +63,7 @@ cp -a "${ROOT}/web/dist" "${PAYLOAD}/web/dist"
 cp "${SCRIPT_DIR}/spectre.sh" "${PAYLOAD}/spectre.sh"
 cp "${SCRIPT_DIR}/spectre.service" "${PAYLOAD}/spectre.service"
 cp "${SCRIPT_DIR}/install.sh" "${PAYLOAD}/install.sh"
+cp "${ROOT}/installers/common/OS-PREREQS.txt" "${PAYLOAD}/OS-PREREQS.txt"
 chmod +x "${PAYLOAD}/spectre.sh" "${PAYLOAD}/install.sh"
 
 cat > "${PAYLOAD}/package.json" <<EOF
@@ -149,9 +150,18 @@ SPECTRE — Linux (${ARCH})
 
 Fully offline install (Node + npm deps + Electron bundled):
   sudo ./install.sh
+  # then log out/in once so dialout group applies
 
 Installs to /opt/spectre, enables systemd unit spectre.service, starts service.
 Open: http://127.0.0.1:9000/
+
+NOT in this archive (OS / hardware — set up once):
+  - USB-serial driver/modules so /dev/ttyUSB* or /dev/ttyACM* appears
+  - systemd (normal on Pi OS / Ubuntu / Debian)
+  - dialout membership (install.sh adds you; re-login required)
+  - Desktop session only if you want the Electron overlay
+
+See docs/INSTALL.md "OS / hardware setup" or SPECTRE-Install-Guide.pdf.
 EOF
 
 mkdir -p "${RELEASE}"

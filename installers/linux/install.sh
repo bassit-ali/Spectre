@@ -141,6 +141,12 @@ echo "Installed."
 echo "  Service: systemctl status ${UNIT_NAME}"
 echo "  Open:    ${URL}"
 echo "  ${TAGLINE}"
+echo
+echo "OS pieces this package cannot ship (set up once):"
+echo "  - USB-serial driver/modules so /dev/ttyUSB* or /dev/ttyACM* exists"
+echo "  - dialout group (install.sh tried to add you — log out/in once)"
+echo "  - Desktop session only if you need the Electron overlay"
+echo "  Details: SPECTRE-Install-Guide.pdf / docs/INSTALL.md"
 if [[ -n "${SUDO_USER:-}" ]]; then
-  echo "  Note: log out/in if dialout group was just added for ${SUDO_USER}."
+  echo "  Next: log out/in as ${SUDO_USER}, plug the adapter, open ${URL}"
 fi

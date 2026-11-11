@@ -80,6 +80,7 @@ try {
 
   Copy-Item (Join-Path $PSScriptRoot 'spectre.cmd') (Join-Path $Payload 'spectre.cmd') -Force
   Copy-Item (Join-Path $PSScriptRoot 'install.ps1') (Join-Path $Payload 'install.ps1') -Force
+  Copy-Item (Join-Path $Root 'installers\common\OS-PREREQS.txt') (Join-Path $Payload 'OS-PREREQS.txt') -Force
   Set-Content -Path (Join-Path $Payload 'BRANDING.txt') -Encoding UTF8 -Value @(
     'SPECTRE'
     'Local web service: available on port 9000 (or saved httpPort)'
@@ -95,7 +96,15 @@ All-users install (Administrator PowerShell):
 Installs to C:\Program Files\SPECTRE\, registers logon autostart, opens the
 local console on the configured listen port (default 9000).
 Fully offline: bundled Node (runtime\), npm deps + serialport, and Electron overlay.
-No separate Node.js / npm install. USB-serial driver is still an OS concern.
+No separate Node.js / npm install.
+
+NOT in this archive (OS / hardware — set up once):
+  - USB-serial driver so a healthy COMx appears in Device Manager
+  - Administrator elevation for Program Files + autostart
+  - Logged-on desktop session for the Electron overlay (browser widget always works)
+  - Pelco-D head + RS-485 (or optional UDP) cabling
+
+See docs/INSTALL.md "OS / hardware setup" or SPECTRE-Install-Guide.pdf.
 
 Manual start: .\spectre.cmd
 "@
