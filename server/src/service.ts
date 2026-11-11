@@ -38,6 +38,13 @@ const RECONNECT_MS = 2500;
 const HANDSHAKE_RETRY_MS = 5000;
 const POLL_MS = 500;
 const LAST_LOG_KEEP = 100;
+/** Event-loop lag above this fails BIT /health and starts starve recovery. */
+const LAG_FAIL_MS = 2000;
+/** RSS above this fails BIT /health (hung process was ~1GB; healthy ~60MB). */
+const RSS_FAIL_MB = 512;
+/** Consecutive lag/RSS failures before process.exit for supervisor restart. */
+const STARVE_EXIT_STREAK = 5;
+const UI_PROBE_TIMEOUT_MS = 2000;
 
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -99,8 +106,14 @@ export class SpectreService extends EventEmitter {
   private handshaking = false;
   private bitRunning = false;
   private shuttingDown = false;
+  private watchdogBusy = false;
   private webDir: string | null = null;
+  private publicUrl: string | null = null;
   private pipShell: PipShellManager | null = null;
+  /** Drop WS clients that have stopped draining (registered by attachWebSocket). */
+  private wsJanitor: (() => number) | null = null;
+  /** Consecutive watchdog ticks with lag/RSS over budget. */
+  private starveStreak = 0;
   /** Coalesce overlapping sphere/slider gotos so the RS-485 bus is not flooded. */
   private pendingGoto: { pan?: number; tilt?: number } | null = null;
   /** In-flight target — pan-only / tilt-only updates must merge against this, not drop axes. */
@@ -123,6 +136,23 @@ export class SpectreService extends EventEmitter {
 
   setWebDir(dir: string | null): void {
     this.webDir = dir;
+  }
+
+  setPublicUrl(url: string): void {
+    this.publicUrl = url.endsWith('/') ? url : `${url}/`;
+  }
+
+  /** Called from ws.ts so the watchdog can shed backpressured clients. */
+  setWsJanitor(fn: () => number): void {
+    this.wsJanitor = fn;
+  }
+
+  processMemory(): { rssMb: number; heapUsedMb: number } {
+    const m = process.memoryUsage();
+    return {
+      rssMb: Math.round(m.rss / (1024 * 1024)),
+      heapUsedMb: Math.round(m.heapUsed / (1024 * 1024)),
+    };
   }
 
   /** Wire the always-on-top desktop pip-shell (Windows overlay). */
@@ -181,8 +211,13 @@ export class SpectreService extends EventEmitter {
       this.out('serial.status', this.serialStatus());
       if (!port.getStatus().connected) this.markEncoders(false, 'serial disconnected');
     });
-    port.on('tx', (hex: string) => this.out('serial.tx', { ts: Date.now(), hex }));
-    port.on('rx', (hex: string) => this.out('serial.rx', { ts: Date.now(), hex }));
+    // Raw bus hex is debug-only. Broadcasting every TX/RX frame to all WS clients
+    // will unbounded-buffer (and OOM) if a browser/Electron tab stops reading.
+    const debugBus = process.env.SPECTRE_DEBUG_BUS === '1';
+    if (debugBus) {
+      port.on('tx', (hex: string) => this.out('serial.tx', { ts: Date.now(), hex }));
+      port.on('rx', (hex: string) => this.out('serial.rx', { ts: Date.now(), hex }));
+    }
     port.on('error', (err: unknown) => {
       this.log('error', `serial: ${String(err)}`);
       this.markEncoders(false, 'serial fault');
@@ -292,12 +327,16 @@ export class SpectreService extends EventEmitter {
     const now = Date.now();
     const wdAge = this.lastWatchdogAt ? now - this.lastWatchdogAt : null;
     const serial = this.serialStatus();
+    const mem = this.processMemory();
     const watchdogAlive = wdAge != null && wdAge < WATCHDOG_MS * 5;
-    const status: 'ok' | 'degraded' | 'down' = !watchdogAlive
-      ? 'down'
-      : serial.connected && this.encoder.healthy
-        ? 'ok'
-        : 'degraded';
+    const starved = this.lastLagMs > LAG_FAIL_MS || mem.rssMb >= RSS_FAIL_MB;
+    // Process starvation is "down" — serial-only problems stay "degraded".
+    const status: 'ok' | 'degraded' | 'down' =
+      !watchdogAlive || starved
+        ? 'down'
+        : serial.connected && this.encoder.healthy
+          ? 'ok'
+          : 'degraded';
     return {
       status,
       ts: now,
@@ -308,7 +347,9 @@ export class SpectreService extends EventEmitter {
       encoderReason: this.encoder.reason,
       motionMode: this.mode,
       clients: this.clients,
-      watchdog: { alive: watchdogAlive, lastTickAt: this.lastWatchdogAt || null, lagMs: this.lastLagMs },
+      memory: mem,
+      starveStreak: this.starveStreak,
+      watchdog: { alive: watchdogAlive && !starved, lastTickAt: this.lastWatchdogAt || null, lagMs: this.lastLagMs },
       bit: this.bit ? { ok: this.bit.ok, at: this.bit.finishedAt, trigger: this.bit.trigger } : null,
       webDir: this.webDir,
       configPath: this.config.path,
@@ -321,7 +362,13 @@ export class SpectreService extends EventEmitter {
     this.stopWatchdog();
     this.lastWatchdogAt = Date.now();
     this.watchdogTimer = setInterval(() => {
-      void this.watchdogTick().catch((err) => this.log('error', `watchdog: ${String(err)}`));
+      if (this.watchdogBusy) return;
+      this.watchdogBusy = true;
+      void this.watchdogTick()
+        .catch((err) => this.log('error', `watchdog: ${String(err)}`))
+        .finally(() => {
+          this.watchdogBusy = false;
+        });
     }, WATCHDOG_MS);
   }
 
@@ -334,8 +381,26 @@ export class SpectreService extends EventEmitter {
     const now = Date.now();
     this.lastLagMs = Math.max(0, now - this.lastWatchdogAt - WATCHDOG_MS);
     this.lastWatchdogAt = now;
-    if (this.lastLagMs > 2000) this.log('warn', `event loop lag ${this.lastLagMs}ms`);
     if (this.shuttingDown) return;
+
+    const mem = this.processMemory();
+    const starved = this.lastLagMs > LAG_FAIL_MS || mem.rssMb >= RSS_FAIL_MB;
+    if (starved) {
+      this.starveStreak += 1;
+      this.log(
+        'warn',
+        `process pressure lag=${this.lastLagMs}ms rss=${mem.rssMb}MB streak=${this.starveStreak}/${STARVE_EXIT_STREAK}`,
+      );
+      const dropped = this.wsJanitor?.() ?? 0;
+      if (dropped > 0) this.log('warn', `shed ${dropped} backpressured WS client(s)`);
+      if (this.starveStreak >= STARVE_EXIT_STREAK) {
+        this.log('error', 'sustained event-loop / memory starvation — exiting for restart');
+        process.exit(2);
+      }
+      // Do not pile reconnect/handshake/health work onto a starved loop.
+      return;
+    }
+    this.starveStreak = 0;
 
     const status = this.port.getStatus();
     const cfg = this.config.value;
@@ -536,13 +601,30 @@ export class SpectreService extends EventEmitter {
           : this.config.lastError ?? 'not writable',
       );
 
-      // web assets
+      // web assets on disk
       add(
         'web',
         !!this.webDir && fs.existsSync(this.webDir),
         this.webDir ?? 'no web/dist or web directory found',
         true,
       );
+
+      // Process pressure — the failure mode that previously starved static HTTP.
+      const mem = this.processMemory();
+      add(
+        'process.lag',
+        this.lastLagMs <= LAG_FAIL_MS,
+        `lag ${this.lastLagMs}ms (limit ${LAG_FAIL_MS}ms)`,
+      );
+      add(
+        'process.rss',
+        mem.rssMb < RSS_FAIL_MB,
+        `rss ${mem.rssMb}MB heap ${mem.heapUsedMb}MB (limit ${RSS_FAIL_MB}MB)`,
+      );
+
+      // Prove the UI is actually served, not just present on disk.
+      const ui = await this.probeLocalUi();
+      add('http.ui', ui.ok, ui.detail);
 
       // settings sanity
       const s = this.motion.getSettings() as ControllerSettings;
@@ -616,6 +698,33 @@ export class SpectreService extends EventEmitter {
   private emptyBit(trigger: BitReport['trigger']): BitReport {
     const now = Date.now();
     return { trigger, ok: false, startedAt: now, finishedAt: now, durationMs: 0, checks: [] };
+  }
+
+  /** Local GET / with timeout — catches "listening but not serving" starvation. */
+  private async probeLocalUi(): Promise<{ ok: boolean; detail: string }> {
+    if (!this.publicUrl) return { ok: false, detail: 'listen URL not set' };
+    const url = this.publicUrl;
+    const started = Date.now();
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        redirect: 'manual',
+        signal: AbortSignal.timeout(UI_PROBE_TIMEOUT_MS),
+      });
+      const ms = Date.now() - started;
+      const ok = res.status >= 200 && res.status < 400 && ms <= UI_PROBE_TIMEOUT_MS;
+      // Drain body so the socket can close promptly.
+      await res.arrayBuffer().catch(() => undefined);
+      return {
+        ok,
+        detail: ok
+          ? `GET / → ${res.status} in ${ms}ms`
+          : `GET / → ${res.status} in ${ms}ms (slow or error)`,
+      };
+    } catch (err) {
+      const ms = Date.now() - started;
+      return { ok: false, detail: `GET / failed in ${ms}ms: ${String(err)}` };
+    }
   }
 
   // --------------------------------------------------------------- settings

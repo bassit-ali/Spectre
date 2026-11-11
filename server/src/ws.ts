@@ -28,6 +28,16 @@ function originAllowed(req: IncomingMessage): boolean {
   }
 }
 
+/** Drop outbound pushes once a client stops reading — prevents server OOM. */
+const MAX_BUFFERED_BYTES = 256 * 1024;
+const DROP_UNDER_PRESSURE = new Set([
+  'serial.tx',
+  'serial.rx',
+  'system.health',
+  'pose',
+  'log',
+]);
+
 export function attachWebSocket(server: Server, svc: SpectreService, endpoint: Endpoint): WebSocketServer {
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 });
   const alive = new WeakMap<WebSocket, boolean>();
@@ -48,17 +58,40 @@ export function attachWebSocket(server: Server, svc: SpectreService, endpoint: E
   });
 
   const send = (ws: WebSocket, msg: OutMessage & { id?: unknown }): void => {
-    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+    if (ws.readyState !== WebSocket.OPEN) return;
+    if (ws.bufferedAmount > MAX_BUFFERED_BYTES) {
+      if (DROP_UNDER_PRESSURE.has(msg.type)) return;
+      // Critical path still blocked — terminate the stuck client so HTTP can breathe.
+      ws.terminate();
+      return;
+    }
+    ws.send(JSON.stringify(msg));
   };
 
   const broadcast = (msg: OutMessage): void => {
     const text = JSON.stringify(msg);
     for (const c of wss.clients) {
-      if (c.readyState === WebSocket.OPEN) c.send(text);
+      if (c.readyState !== WebSocket.OPEN) continue;
+      if (c.bufferedAmount > MAX_BUFFERED_BYTES) {
+        if (DROP_UNDER_PRESSURE.has(msg.type)) continue;
+        c.terminate();
+        continue;
+      }
+      c.send(text);
     }
   };
 
   svc.on('out', broadcast);
+  svc.setWsJanitor(() => {
+    let dropped = 0;
+    for (const c of wss.clients) {
+      if (c.readyState === WebSocket.OPEN && c.bufferedAmount > MAX_BUFFERED_BYTES) {
+        c.terminate();
+        dropped += 1;
+      }
+    }
+    return dropped;
+  });
 
   wss.on('connection', (ws) => {
     alive.set(ws, true);
