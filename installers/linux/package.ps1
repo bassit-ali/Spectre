@@ -7,7 +7,7 @@
 [CmdletBinding()]
 param(
   [string]$RepoRoot = '',
-  [string]$Version = '1.1.0',
+  [string]$Version = '1.1.1',
   [switch]$SkipBuild,
   [ValidateSet('x64', 'arm64', 'both')]
   [string]$Arch = 'both'

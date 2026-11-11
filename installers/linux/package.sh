@@ -32,7 +32,7 @@ host_arch() {
 }
 
 ARCH="${ARCH:-$(host_arch)}"
-VERSION="${VERSION:-1.1.0}"
+VERSION="${VERSION:-1.1.1}"
 PAYLOAD="${RELEASE}/linux/payload-${ARCH}"
 OUT_TGZ="${RELEASE}/spectre-linux-${ARCH}.tar.gz"
 
