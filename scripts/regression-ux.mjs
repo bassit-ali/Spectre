@@ -71,7 +71,6 @@ async function sectionConsoleCopy() {
 
   const requiredIds = [
     'app-header',
-    'header-credit',
     'home-btn',
     'halt-btn',
     'goto-btn',
@@ -122,6 +121,12 @@ async function sectionConsoleCopy() {
   assert('console land 0.5/1/2 chips', hasId(text, 'land-res-05') && hasId(text, 'land-res-1') && hasId(text, 'land-res-2'));
   assert('console no fine pan slider', !hasId(text, 'pan-slider'));
   assert('console tilt ±50', hasText(text, '±50°|−50°|\\+50°') || (hasText(text, 'min="-50"') && hasText(text, 'max="50"')));
+  assert('console ethernet udp host field', hasId(text, 'udp-host-input'));
+  assert('console ethernet udp port field', hasId(text, 'udp-port-input'));
+  assert('console prefer udp checkbox', hasId(text, 'prefer-udp-check'));
+  assert('console eth apply action', hasAction(text, 'eth-apply'));
+  assert('console prefer udp default off', hasText(text, 'id="prefer-udp-check"[^>]*type="checkbox"') && !hasText(text, 'id="prefer-udp-check"[^>]*checked'));
+  assert('console factory udp seed visible', hasText(text, '192\\.168\\.8\\.200') && hasText(text, 'value="6666"'));
 }
 
 async function sectionWidgetCopy() {
@@ -167,8 +172,8 @@ async function sectionWidgetCopy() {
   assert('widget no fine pan bars', !hasId(text, 'widget-pan-minus') && !hasId(text, 'widget-pan-plus'));
   assert('widget pin in header', hasId(text, 'widget-pin-btn'));
   assert('widget tilt ±50', hasText(text, '±50°') && /min="-50"/.test(text) && /max="50"/.test(text));
-  assert('widget no opacity chrome', !hasId(text, 'widget-opacity-slider') && !hasText(text, 'widget-opacity'));
-  assert('widget credit footer', hasText(text, 'DEVELOPED BY 26 SIG'));
+  assert('widget opacity chrome', hasId(text, 'widget-opacity-slider') && hasId(text, 'widget-opacity-btn'));
+  assert('widget no credit footer', !/26 SIG|R&D WING/i.test(text));
   assert('widget offline banner', hasId(text, 'widget-offline-banner') && hasText(text, 'No device connected'));
   assert('widget open-console on SPECTRE', hasAction(text, 'open-console') && hasId(text, 'product-name'));
 }

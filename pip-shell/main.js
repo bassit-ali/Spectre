@@ -2,12 +2,15 @@
 
 /**
  * SPECTRE pip-shell — thin always-on-top Electron window.
- * Loads the widget from the local SPECTRE server (default :9000).
+ * Loads the widget from the local SPECTRE server (default port 9000).
  * This is the real Windows on-screen overlay (frameless, transparent,
  * skip-taskbar, always-on-top) — not a browser popup.
  *
- * Prerequisite: SPECTRE server must be running on http://127.0.0.1:9000
- *   (or set SPECTRE_WIDGET_URL to override the widget URL).
+ * Prerequisite: SPECTRE server must be running (default port 9000),
+ *   or set SPECTRE_WIDGET_URL to override the widget URL.
+ *
+ * Auto-dock (default on): bottom-right of the primary work area.
+ * Height changes keep the bottom edge fixed so minimize/expand stays docked.
  */
 
 const { app, BrowserWindow, ipcMain, screen, shell } = require('electron');
@@ -15,10 +18,15 @@ const path = require('path');
 
 const DEFAULT_URL = 'http://127.0.0.1:9000/widget.html?bg=transparent';
 const WIDGET_URL = process.env.SPECTRE_WIDGET_URL || DEFAULT_URL;
+const MARGIN = 24;
 
 /** @type {BrowserWindow | null} */
 let win = null;
-let pinned = true;
+let pinned = process.env.SPECTRE_WIDGET_PINNED !== '0';
+/** When true, window stays glued to the bottom-right work-area corner. */
+let autoDock = process.env.SPECTRE_WIDGET_AUTO_DOCK !== '0';
+/** Startup opacity from env (config default 0.95); widget UI can change it live. */
+let initialOpacity = 0.95;
 
 // Single-instance: focus existing overlay instead of spawning duplicates.
 const gotLock = app.requestSingleInstanceLock();
@@ -42,6 +50,8 @@ function clampOpacity(v) {
   return Math.min(1, Math.max(0.4, n));
 }
 
+initialOpacity = clampOpacity(process.env.SPECTRE_WIDGET_OPACITY);
+
 function applyPinned(next) {
   pinned = Boolean(next);
   if (!win || win.isDestroyed()) return;
@@ -58,29 +68,64 @@ function applyOpacity(value) {
   win.setOpacity(clampOpacity(value));
 }
 
-/** Resize height while keeping the top edge fixed (minimize collapses downward). */
+/** Bottom-right of the primary display work area. */
+function bottomRightBounds(width, height) {
+  const work = screen.getPrimaryDisplay().workArea;
+  const w = Math.max(280, Math.round(width));
+  const h = Math.max(64, Math.round(height));
+  return {
+    x: work.x + work.width - w - MARGIN,
+    y: work.y + work.height - h - MARGIN,
+    width: w,
+    height: h,
+  };
+}
+
+function dockBottomRight() {
+  if (!win || win.isDestroyed()) return;
+  const [w, h] = win.getSize();
+  win.setBounds(bottomRightBounds(w, h), false);
+}
+
+/**
+ * Resize height while keeping the bottom edge fixed (minimize scrolls down / maximize up).
+ * When auto-dock is on, also re-snap to the bottom-right corner.
+ */
 function applyContentHeight(height) {
   if (!win || win.isDestroyed()) return;
-  const h = Math.max(56, Math.round(Number(height) || 0));
+  const h = Math.max(64, Math.round(Number(height) || 0));
   const [x, y] = win.getPosition();
-  const [w] = win.getSize();
-  win.setBounds({ x, y, width: w, height: h }, false);
+  const [w, prevH] = win.getSize();
+  if (autoDock) {
+    win.setBounds(bottomRightBounds(w, h), true);
+    return;
+  }
+  const bottom = y + prevH;
+  win.setBounds({ x, y: bottom - h, width: w, height: h }, true);
 }
 
 function createWindow() {
-  const work = screen.getPrimaryDisplay().workArea;
   const width = 420;
   const height = 720;
-  const x = work.x + work.width - width - 24;
-  const y = work.y + Math.max(24, Math.floor((work.height - height) / 2));
+  const placed = autoDock
+    ? bottomRightBounds(width, height)
+    : (() => {
+        const work = screen.getPrimaryDisplay().workArea;
+        return {
+          x: work.x + work.width - width - MARGIN,
+          y: work.y + Math.max(MARGIN, Math.floor((work.height - height) / 2)),
+          width,
+          height,
+        };
+      })();
 
   win = new BrowserWindow({
-    width,
-    height,
-    x,
-    y,
+    width: placed.width,
+    height: placed.height,
+    x: placed.x,
+    y: placed.y,
     minWidth: 280,
-    // Allow header-only minimize (top edge fixed; height shrinks downward).
+    // Header-only minimize; height shrinks upward from the bottom edge.
     minHeight: 64,
     title: 'SPECTRE',
     frame: false,
@@ -90,7 +135,7 @@ function createWindow() {
     maximizable: false,
     fullscreenable: false,
     skipTaskbar: true,
-    alwaysOnTop: true,
+    alwaysOnTop: pinned,
     hasShadow: false,
     backgroundColor: '#00000000',
     show: false,
@@ -102,27 +147,28 @@ function createWindow() {
     },
   });
 
-  applyPinned(true);
-  applyOpacity(1);
+  applyPinned(pinned);
+  applyOpacity(initialOpacity);
 
   win.once('ready-to-show', () => {
+    if (autoDock) dockBottomRight();
     win?.show();
-    win?.setAlwaysOnTop(true, 'screen-saver');
+    applyPinned(pinned);
   });
 
   win.on('closed', () => {
     win = null;
   });
 
-  win.webContents.on('did-fail-load', (_e, code, desc, url) => {
+  win.webContents.on('did-fail-load', (_e, code, desc, _url) => {
     console.error(
-      `[spectre-pip-shell] Failed to load ${url} (${code}: ${desc}).\n` +
-        `  Start the SPECTRE server on :9000 first, then run npm start again.\n` +
+      `[spectre-pip-shell] Failed to load widget (${code}: ${desc}).\n` +
+        `  Start the SPECTRE server on its listen port first, then run npm start again.\n` +
         `  Override URL with SPECTRE_WIDGET_URL if needed.`,
     );
   });
 
-  console.info(`[spectre-pip-shell] Loading ${WIDGET_URL}`);
+  console.info('[spectre-pip-shell] Loading widget overlay');
   void win.loadURL(WIDGET_URL);
 }
 
@@ -135,6 +181,14 @@ function wireIpc() {
   });
   ipcMain.on('shell:set-content-height', (_e, height) => {
     applyContentHeight(height);
+  });
+  ipcMain.on('shell:set-auto-dock', (_e, next) => {
+    autoDock = Boolean(next);
+    if (autoDock) dockBottomRight();
+  });
+  ipcMain.on('shell:dock-bottom-right', () => {
+    // Dock only — do not force auto-dock mode on.
+    dockBottomRight();
   });
   ipcMain.on('shell:close', () => {
     win?.close();

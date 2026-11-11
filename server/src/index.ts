@@ -2,12 +2,11 @@ import fs from 'fs';
 import path from 'path';
 import Fastify from 'fastify';
 import fastifyStatic from '@fastify/static';
-import { ConfigStore } from './config';
+import { ConfigStore, DEFAULT_HTTP_PORT, clampHttpPort } from './config';
 import { SpectreService } from './service';
 import { attachWebSocket, Endpoint } from './ws';
 
 const HOST = '127.0.0.1';
-const PORT = Number(process.env.SPECTRE_PORT) || 9000;
 
 /** Locate <project>/server regardless of tsx (server/src) or compiled (server/dist/src). */
 function findServerRoot(): string {
@@ -29,14 +28,18 @@ function resolveWebDir(): string | null {
   return null;
 }
 
-const PLACEHOLDER = `<!doctype html><meta charset="utf-8"><title>Spectre</title>
-<body style="font-family:system-ui;background:#0f1419;color:#d8dee9;padding:2rem">
-<h1>Spectre server is running</h1>
-<p>No web UI found (<code>web/dist</code> or <code>web</code>). WebSocket: <code>ws://${HOST}:${PORT}/ws</code> &middot;
-<a style="color:#88c0d0" href="/health">/health</a></p></body>`;
-
 async function main(): Promise<void> {
   const config = new ConfigStore();
+  const envPort = Number(process.env.SPECTRE_PORT);
+  const PORT = Number.isFinite(envPort) && envPort > 0
+    ? clampHttpPort(envPort)
+    : clampHttpPort(config.value.httpPort ?? DEFAULT_HTTP_PORT);
+  const PLACEHOLDER = `<!doctype html><meta charset="utf-8"><title>Spectre</title>
+<body style="font-family:system-ui;background:#0f1419;color:#d8dee9;padding:2rem">
+<h1>Spectre server is running</h1>
+<p>No web UI found (<code>web/dist</code> or <code>web</code>). Available on port ${PORT} (WebSocket /ws) &middot;
+<a style="color:#88c0d0" href="/health">/health</a></p></body>`;
+
   const svc = new SpectreService(config);
   const webDir = resolveWebDir();
   const projectRoot = path.resolve(findServerRoot(), '..');
@@ -93,7 +96,7 @@ async function main(): Promise<void> {
   attachWebSocket(app.server, svc, endpoint);
 
   await app.listen({ host: HOST, port: PORT });
-  svc.log('info', `Spectre listening on ${endpoint.url} (ws: ${endpoint.wsUrl})`);
+  svc.log('info', `Spectre listening on port ${PORT}`);
 
   svc.initPipShell(projectRoot, `${endpoint.url}widget.html`);
   svc.startWatchdog();

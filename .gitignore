@@ -43,3 +43,12 @@ Screens/
 # Accidental / local tooling trees (do not ship)
 tools/
 tools_DELETE_ME*/
+
+# Local-only archive of pre-SPECTRE monolith (not part of product)
+_archive/
+
+# One-off extracts / local manuals
+_extract_pdf.py
+_wipe_tools.py
+docs/_motor_*
+docs/*.pdf

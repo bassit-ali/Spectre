@@ -2,12 +2,11 @@
 <#
 .SYNOPSIS
   Build SPECTRE web+server, stage Windows payload, optionally build Setup.exe.
-  Developed by 26 Sig Bn R&D Wing
 #>
 [CmdletBinding()]
 param(
   [switch]$SkipNpmInstall,
-  [string]$Version = '1.1.1'
+  [string]$Version = '1.1.2'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,7 +16,6 @@ $Payload = Join-Path $Root 'release\windows\payload-clean'
 $Release = Join-Path $Root 'release'
 
 Write-Host "==> SPECTRE Windows build (v$Version)"
-Write-Host "    Developed by 26 Sig Bn R&D Wing"
 Write-Host "    Root: $Root"
 
 Push-Location $Root
@@ -65,7 +63,7 @@ try {
     name = 'spectre'
     version = $Version
     private = $true
-    description = 'SPECTRE local pan/tilt web service — Developed by 26 Sig Bn R&D Wing'
+    description = 'SPECTRE local pan/tilt web service'
     main = 'server/dist/src/index.js'
     dependencies = @{
       '@fastify/static' = '^10.1.10'
@@ -78,24 +76,21 @@ try {
 
   Copy-Item (Join-Path $PSScriptRoot 'spectre.cmd') (Join-Path $Payload 'spectre.cmd') -Force
   Copy-Item (Join-Path $PSScriptRoot 'install.ps1') (Join-Path $Payload 'install.ps1') -Force
-  Copy-Item (Join-Path $PSScriptRoot 'install.ps1') (Join-Path $Release 'SPECTRE-install.ps1') -Force
   Set-Content -Path (Join-Path $Payload 'BRANDING.txt') -Encoding UTF8 -Value @(
     'SPECTRE'
-    'Developed by 26 Sig Bn R&D Wing'
-    'Local web service: http://127.0.0.1:9000/'
+    'Local web service: available on port 9000 (or saved httpPort)'
     'Desktop overlay: pip-shell\ (Electron)'
     'Requires Node.js LTS on PATH (or place node.exe in runtime\).'
   )
   Set-Content -Path (Join-Path $Payload 'README.txt') -Encoding UTF8 -Value @"
 SPECTRE — Windows portable payload v$Version
-Developed by 26 Sig Bn R&D Wing
 
 All-users install (Administrator PowerShell):
   .\install.ps1
 
-Installs to C:\Program Files\SPECTRE\, registers logon autostart, opens:
-  http://127.0.0.1:9000/
-  Desktop widget overlay (pip-shell) when a user session is active.
+Installs to C:\Program Files\SPECTRE\, registers logon autostart, opens the
+local console on the configured listen port (default 9000).
+Desktop widget overlay (pip-shell) when a user session is active.
 
 Manual start: .\spectre.cmd
 "@
@@ -109,9 +104,12 @@ Manual start: .\spectre.cmd
     ForEach-Object { Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
   Pop-Location
 
-  $zip = Join-Path $Release 'SPECTRE-windows-x64-portable.zip'
-  $zipVer = Join-Path $Release "SPECTRE-windows-x64-v$Version.zip"
-  foreach ($z in @($zip, $zipVer)) { if (Test-Path $z) { Remove-Item $z -Force } }
+  # Latest-only: one versioned portable ZIP (no unversioned duplicate)
+  $zip = Join-Path $Release "SPECTRE-windows-x64-v$Version.zip"
+  $legacyPortable = Join-Path $Release 'SPECTRE-windows-x64-portable.zip'
+  foreach ($z in @($zip, $legacyPortable)) {
+    if (Test-Path $z) { Remove-Item $z -Force }
+  }
   # Prefer tar (handles long paths); fall back to Compress-Archive
   $tar = Get-Command tar -ErrorAction SilentlyContinue
   if ($tar) {
@@ -121,7 +119,6 @@ Manual start: .\spectre.cmd
   } else {
     Compress-Archive -Path (Join-Path $Payload '*') -DestinationPath $zip -Force
   }
-  Copy-Item $zip $zipVer -Force
   Write-Host "    ZIP: $zip"
 
   $makensisCmd = $null
@@ -150,7 +147,7 @@ Manual start: .\spectre.cmd
   }
 
   Write-Host ''
-  Write-Host 'Done. Open http://127.0.0.1:9000/ after install.'
+  Write-Host 'Done. Open the SPECTRE console on the configured listen port (default 9000) after install.'
 }
 finally {
   Pop-Location

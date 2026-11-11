@@ -1,6 +1,6 @@
 /**
  * Closed-loop goto accuracy probe against the live SPECTRE server.
- * Usage: node scripts/goto-accuracy.mjs
+ * Usage: node scripts/lab/goto-accuracy.mjs
  */
 import WebSocket from 'ws';
 

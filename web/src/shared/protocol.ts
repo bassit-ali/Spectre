@@ -1,10 +1,6 @@
 /**
- * Draft wire protocol between the SPECTRE UI (console + widget) and the local server.
- * JSON text frames over ws://127.0.0.1:9000/ws:   { "type": "<name>", ...payload }
- *
- * Only data that can really originate from a Pelco-D pan/tilt head or the serial adapter
- * is modelled here (pan/tilt angle queries, raw reply words, presets 1-9, address, baud, speeds).
- * This file is a CONTRACT DRAFT - the server does not exist yet.
+ * Wire protocol between the SPECTRE UI (console + widget) and the local server.
+ * JSON text frames over WebSocket /ws on the configured listen port (default 9000).
  */
 
 export type MoveFlags = { left?: boolean; right?: boolean; up?: boolean; down?: boolean };
@@ -24,6 +20,7 @@ export type SerialStatus = {
   path: string | null;
   baudRate: number;
   address: number;
+  transport?: 'serial' | 'udp';
 };
 
 export type PresetInfo = { id: number; label?: string; pan: number | null; tilt: number | null };
@@ -42,6 +39,12 @@ export type Settings = {
   widgetPinned?: boolean;
   widgetVisible?: boolean;
   widgetAutoDock?: boolean;
+  /** Local HTTP/WS listen port (9000–15000). Applied on next SPECTRE restart. */
+  httpPort?: number;
+  /** Ethernet Pelco-D endpoint (`udp://host:port`) — user-editable; factory seed only. */
+  udpPath?: string;
+  /** When true, auto-connect may prefer the configured UDP endpoint over COM. Default false. */
+  preferUdp?: boolean;
 };
 
 /** UI -> server */
