@@ -1,8 +1,10 @@
 ﻿# SPECTRE — Install Guide
 
-**Version 1.1.5**
+**Version 1.1.6** · [Latest downloads](https://github.com/bassit-ali/Spectre/releases/latest)
 
 SPECTRE is a local pan/tilt controller for Pelco-D heads. It binds to **127.0.0.1:9000**, serves the web console, and optionally shows an always-on-top desktop widget.
+
+This file is the source of truth for the printable **SPECTRE-Install-Guide** shipped on every GitHub Release.
 
 | | |
 |---|---|
@@ -21,7 +23,7 @@ SPECTRE is a local pan/tilt controller for Pelco-D heads. It binds to **127.0.0.
 | File | Platform | Role |
 |------|----------|------|
 | `SPECTRE-Setup.exe` | Windows x64 | **Recommended** all-users installer |
-| `SPECTRE-windows-x64-v1.1.5.zip` | Windows x64 | Portable payload + `install.ps1` |
+| `SPECTRE-windows-x64-v1.1.6.zip` | Windows x64 | Portable payload + `install.ps1` |
 | `spectre-linux-x64.tar.gz` | Linux x86_64 | Extract + `sudo ./install.sh` |
 | `spectre-linux-arm64.tar.gz` | Linux ARM64 / Pi | Same |
 | `SPECTRE-Install-Guide.pdf` | All | This guide (printable) |
@@ -176,19 +178,18 @@ What the installer does (all already inside the package — offline):
 
 ```powershell
 # Elevated PowerShell
-Expand-Archive SPECTRE-windows-x64-v1.1.5.zip -DestinationPath C:\Temp\spectre-payload
+Expand-Archive SPECTRE-windows-x64-v1.1.6.zip -DestinationPath C:\Temp\spectre-payload
 cd C:\Temp\spectre-payload
 .\install.ps1
 ```
 
 ### Uninstall (Windows)
 
+Use **Apps → SPECTRE → Uninstall**, or run the elevated uninstall script from a source checkout:
+
 ```powershell
-# Elevated
 .\installers\windows\uninstall-system.ps1
 ```
-
-Or use **Apps → SPECTRE → Uninstall**.
 
 ---
 
@@ -266,13 +267,13 @@ sudo rm -rf /opt/spectre
 
 1. Confirm the USB-serial driver / dialout steps above are done.
 2. Open **http://127.0.0.1:9000/** — header should show **SERVER: WS ONLINE**.
-3. Use header **Settings** to jump to Hardware Link (RS-485 + Ethernet UDP).
-4. After HALT, the pan pad accepts new aims again; 1°/5°/10° buttons nudge by that many degrees.
-3. Plug the USB-serial adapter; refresh **Ports** in Hardware Link.
-4. Select the port (e.g. `COM13` / `/dev/ttyUSB0`), baud **9600**, address **1**.
-5. Click **Connect**. Ribbon should show link **ONLINE**.
-6. Optional: **RUN SELF-TEST** to verify serial + encoder replies.
-7. Use **HALT** before unplugging serial or powering the head down mid-move.
+3. Use header **Settings** to jump to Hardware Link (RS-485 + optional Ethernet UDP).
+4. Plug the USB-serial adapter; refresh **Ports** in Hardware Link.
+5. Select the port (e.g. `COM11` / `/dev/ttyUSB0`), baud **9600**, address **1**.
+6. Click **Connect**. Ribbon should show link **ONLINE**.
+7. Hit **HALT** once before you jog — after HALT, the pan pad accepts new aims again; **1° / 5° / 10°** buttons nudge by that many degrees.
+8. Optional: **RUN SELF-TEST** to verify serial + encoder replies.
+9. Prefer **HALT** before unplugging serial or powering the head down mid-move.
 
 Soft tilt limits are **−50° … +50°**. Home settles within **±1.5°**.
 
@@ -289,7 +290,7 @@ Soft tilt limits are **−50° … +50°**. Home settles within **±1.5°**.
 | Overlay window missing | No desktop session | Log on locally, or use http://127.0.0.1:9000/widget.html |
 | SmartScreen blocks Setup | Unsigned / new publisher | Prefer Authenticode ([CODE-SIGNING.md](CODE-SIGNING.md)); until then *More info → Run anyway* |
 | Port list empty in console | Driver/permission | Fix driver/dialout first, then refresh Ports |
-| Browser opens, page never loads / server exits | Bundled Node too old (pre-1.1.5) | Upgrade to v1.1.5+ (Node 22.23.5) |
+| Browser opens, page never loads / server exits | Bundled Node too old (pre-1.1.5) | Upgrade to **v1.1.6+** (bundled Node 22.23.5) |
 
 ---
 

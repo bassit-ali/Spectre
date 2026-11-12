@@ -1,32 +1,39 @@
-﻿# SPECTRE v1.1.5
+﻿# SPECTRE v1.1.6
 
 ## Artifacts
 
+Download from **[GitHub Releases (latest)](https://github.com/bassit-ali/Spectre/releases/latest)** — do not commit binaries to git.
+
 | File | Platform |
 |------|----------|
-| `release/SPECTRE-Setup.exe` | Windows x64 installer |
-| `release/SPECTRE-windows-x64-v1.1.5.zip` | Windows portable + `install.ps1` |
-| `release/spectre-linux-x64.tar.gz` | Linux x86_64 |
-| `release/spectre-linux-arm64.tar.gz` | Linux ARM64 / Pi |
-| `release/SPECTRE-Install-Guide.pdf` | Install guide |
+| `SPECTRE-Setup.exe` | Windows x64 installer (recommended) |
+| `SPECTRE-windows-x64-v1.1.6.zip` | Windows portable + `install.ps1` |
+| `spectre-linux-x64.tar.gz` | Linux x86_64 |
+| `spectre-linux-arm64.tar.gz` | Linux ARM64 / Pi |
+| `SPECTRE-Install-Guide.pdf` | Install guide (same content as [INSTALL.md](INSTALL.md)) |
 
-## Changes
+## Changes (v1.1.6)
 
-- Bundled **Node.js 22.23.5** (fixes `ERR_REQUIRE_ESM` crash with `@fastify/static` / `content-disposition@3` on Node 20.18)
-- Pack-time `runtime/NODE_VERSION.txt` + static smoke (native hosts) / version assert (cross-pack)
+- Refreshed **install guide** (PDF/HTML/MD) and README install steps for the current build
+- Repo hygiene: local pack staging / release binaries stay gitignored — **git + GitHub Releases** only
+- Same runtime as 1.1.5: bundled **Node.js 22.23.5**, HALT/sphere fix, degree nudges, Settings jump
+
+## Inherited from v1.1.5
+
+- Bundled **Node.js 22.23.5** (fixes `ERR_REQUIRE_ESM` on Node 20.18)
+- Pack-time `runtime/NODE_VERSION.txt` + payload smoke checks
 - Installer waits for `/health` before opening the browser; `spectre.cmd` pauses on crash
-- **HALT** cancels in-flight sphere `goto` and resolves the hung approach-loop Promise (pad works again after emergency stop)
-- **1° / 5° / 10°** buttons are closed-loop degree nudges (click = that many degrees; hold repeats)
-- Sphere aim spot shows a live **pan degree tag**
-- Header **Settings** jumps to Link · Drive · Widget (Hardware Link / Ethernet)
+- **HALT** cancels in-flight sphere `goto` and resolves hung approach loops
+- **1° / 5° / 10°** closed-loop degree nudges; sphere aim spot shows a live pan degree tag
+- Header **Settings** jumps to Link · Drive · Widget
 
 ## Shipped in the archive
 
 Node under `runtime/` · fastify / @fastify/static / ws / serialport · Electron · web UI
 
-## Windows trusted installer (optional next step)
+## Windows trusted installer (optional)
 
-Unsigned Setup triggers SmartScreen. To ship a signed `SPECTRE-Setup.exe`, use Azure Artifact Signing or an OV code-signing cert and the repo hook in `installers/windows/sign-setup.ps1`. Details: [CODE-SIGNING.md](CODE-SIGNING.md).
+Unsigned Setup triggers SmartScreen. Signing: [CODE-SIGNING.md](CODE-SIGNING.md).
 
 ## Cannot ship (OS / hardware)
 
@@ -44,7 +51,12 @@ Step-by-step: [INSTALL.md — OS / hardware setup](INSTALL.md#os--hardware-setup
 ## Build
 
 ```powershell
-.\installers\windows\build.ps1 -Version 1.1.5
-.\installers\linux\package.ps1 -Version 1.1.5
-.\installers\common\build-install-guide.ps1
+npm run pack:win
+npm run pack:linux
+# or:
+.\installers\windows\build.ps1 -Version 1.1.6
+.\installers\linux\package.ps1 -Version 1.1.6
+.\installers\common\build-install-guide.ps1 -Version 1.1.6
 ```
+
+Artifacts land in `release/` (gitignored). Attach them to the GitHub Release for this tag.

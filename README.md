@@ -5,7 +5,7 @@ Local Pelco-D pan/tilt controller — web console on `127.0.0.1:9000`, optional 
 [![Release](https://img.shields.io/github/v/release/bassit-ali/Spectre?style=flat-square)](https://github.com/bassit-ali/Spectre/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-**v1.1.5** · [Downloads](https://github.com/bassit-ali/Spectre/releases/tag/v1.1.5) · Console: http://127.0.0.1:9000/ · Widget: http://127.0.0.1:9000/widget.html
+**v1.1.6** · [Latest downloads](https://github.com/bassit-ali/Spectre/releases/latest) · Console: http://127.0.0.1:9000/ · Widget: http://127.0.0.1:9000/widget.html
 
 ![SPECTRE console](docs/screenshots/console.png)
 
@@ -17,15 +17,15 @@ Full-page console shot: [docs/screenshots/console-full.png](docs/screenshots/con
 
 ## Install
 
-Release packages are **fully offline**. They already include Node.js, production npm modules, serialport natives, and the Electron overlay. You do **not** install Node.js or run `npm install` on the target machine.
+Grab the **latest** release from [GitHub Releases](https://github.com/bassit-ali/Spectre/releases/latest). Packages are **fully offline** — Node.js, production npm modules, serialport natives, and the Electron overlay are already inside. You do **not** install Node.js or run `npm install` on the target machine.
 
 | File | Platform |
 |------|----------|
 | **SPECTRE-Setup.exe** | Windows x64 (recommended) |
-| `SPECTRE-windows-x64-v1.1.5.zip` | Windows portable + `install.ps1` |
+| `SPECTRE-windows-x64-v1.1.6.zip` | Windows portable + `install.ps1` |
 | `spectre-linux-x64.tar.gz` | Linux x86_64 |
 | `spectre-linux-arm64.tar.gz` | Linux ARM64 / Pi |
-| `SPECTRE-Install-Guide.pdf` | Printable guide |
+| `SPECTRE-Install-Guide.pdf` | Printable guide (matches [docs/INSTALL.md](docs/INSTALL.md)) |
 
 Field steps: [docs/INSTALL.md](docs/INSTALL.md). Release notes: [docs/RELEASE.md](docs/RELEASE.md).
 
@@ -58,12 +58,12 @@ Full step-by-step: [docs/INSTALL.md — OS / hardware setup](docs/INSTALL.md#os-
 Portable path:
 
 ```powershell
-Expand-Archive SPECTRE-windows-x64-v1.1.5.zip -DestinationPath C:\Temp\spectre
+Expand-Archive SPECTRE-windows-x64-v1.1.6.zip -DestinationPath C:\Temp\spectre
 cd C:\Temp\spectre
 .\install.ps1   # elevated
 ```
 
-Uninstall: Apps → SPECTRE, or `.\installers\windows\uninstall-system.ps1` (elevated).
+Uninstall: **Apps → SPECTRE**, or from a source checkout `.\installers\windows\uninstall-system.ps1` (elevated).
 
 ### Linux / Pi
 
@@ -80,9 +80,9 @@ Installs under `/opt/spectre`, enables `spectre.service`, restores execute bits 
 
 ## First run
 
-1. Confirm the header shows the server connected.
+1. Confirm the header shows the server connected (use **Settings** to jump to Hardware Link).
 2. Plug the USB-serial adapter → **Ports** → pick COM / `/dev/ttyUSB*`, **9600**, address **1** → **Connect**.
-3. Hit **HALT** once before you jog.
+3. Hit **HALT** once before you jog (pad works again after HALT; **1° / 5° / 10°** are degree nudges).
 4. Optional: **RUN SELF-TEST**.
 
 RS-485 is the default link. Ethernet UDP is optional in **Hardware Link** (same Pelco-D commands; different wire). Leave “prefer UDP” off unless you want boot auto-connect to try LAN first.
@@ -135,7 +135,7 @@ npm run pack:linux
 npm run pack:docs
 ```
 
-Artifacts land in `release/` (gitignored). Attach them to a GitHub Release; do not commit the binaries.
+Artifacts land in `release/` (gitignored). Publish them on GitHub Releases only — git holds source; Releases hold installers.
 
 ---
 
@@ -146,8 +146,8 @@ server/      Fastify + serial + motion
 web/         console + widget (Vite)
 pip-shell/   Electron always-on-top shell
 installers/  Windows NSIS, Linux tar + install.sh, guide PDF
-scripts/     ship gates; scripts/lab/ for hardware probes
-docs/        INSTALL.md, RELEASE.md, screenshots/
+scripts/     regression / transport / probe helpers
+docs/        INSTALL.md (→ release guide), RELEASE.md, screenshots/
 ```
 
 ---
@@ -162,7 +162,7 @@ docs/        INSTALL.md, RELEASE.md, screenshots/
 | Widget missing | Need a logged-on desktop session; or open `/widget.html` in a browser |
 | Linux serial denied | `groups` must show `dialout` — log out/in after install, replug |
 | Native module mismatch | `PATH="$PWD/runtime/bin:$PATH" npm rebuild serialport` then restart |
-| Console opens but page empty / ERR_REQUIRE_ESM | Old package with Node 20.18 | Install v1.1.5+ (bundled Node 22) |
+| Console opens but page empty / ERR_REQUIRE_ESM | Old package with Node 20.18 | Install **v1.1.6+** (bundled Node 22) |
 
 ```bash
 curl http://127.0.0.1:9000/health
