@@ -53,9 +53,6 @@ _wipe_tools.py
 docs/_motor_*
 docs/*.pdf
 
-# Local pack staging
-_pack112/
-_pack113/
-_pack114/
+# Local one-off pack staging (never commit; rebuild via npm run pack:*)
 _pack*/
 
