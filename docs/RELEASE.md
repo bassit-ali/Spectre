@@ -15,7 +15,7 @@
 - Bundled **Node.js 22.23.5** (fixes `ERR_REQUIRE_ESM` crash with `@fastify/static` / `content-disposition@3` on Node 20.18)
 - Pack-time `runtime/NODE_VERSION.txt` + static smoke (native hosts) / version assert (cross-pack)
 - Installer waits for `/health` before opening the browser; `spectre.cmd` pauses on crash
-- **HALT** cancels in-flight sphere `goto` so the pan pad works again after emergency stop
+- **HALT** cancels in-flight sphere `goto` and resolves the hung approach-loop Promise (pad works again after emergency stop)
 - **1° / 5° / 10°** buttons are closed-loop degree nudges (click = that many degrees; hold repeats)
 - Sphere aim spot shows a live **pan degree tag**
 - Header **Settings** jumps to Link · Drive · Widget (Hardware Link / Ethernet)
