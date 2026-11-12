@@ -143,6 +143,7 @@
               <g id="dome-vector-layer" opacity="0.2" class="pointer-events-none">
                 <line id="dome-beam" stroke="#00dbe9" stroke-width="1.5" x1="72" x2="72" y1="72" y2="72"></line>
                 <circle id="dome-node" cx="72" cy="72" fill="#00f0ff" r="4" stroke="#dbfcff" stroke-width="1.5"></circle>
+                <text id="dome-aim-label" x="72" y="62" text-anchor="middle" fill="#dbfcff" font-size="8" font-weight="700" style="fill:#dbfcff">—°</text>
                 <circle id="dome-ping" class="animate-ping" cx="72" cy="72" fill="none" opacity="0.75" r="7" stroke="#00f0ff" stroke-width="1"></circle>
               </g>
               <g id="dome-pan-badges" pointer-events="none" aria-label="Camera sectors A 0 B 120 C 240"></g>
@@ -153,8 +154,8 @@
               <span class="text-secondary">TILT <span data-bind="tilt-short">—</span></span>
             </div>
 
-            <button type="button" class="jog-btn absolute left-1 top-1/2 -translate-y-1/2 w-5 h-6 rounded bg-surface-container/90 hover:bg-primary-container hover:text-on-primary-container text-primary flex items-center justify-center transition-all z-10" id="widget-jog-left" data-jog="left" title="Pan − (hold)" aria-label="Pan minus"><span class="material-symbols-outlined text-[13px]">keyboard_arrow_left</span></button>
-            <button type="button" class="jog-btn absolute right-1 top-1/2 -translate-y-1/2 w-5 h-6 rounded bg-surface-container/90 hover:bg-primary-container hover:text-on-primary-container text-primary flex items-center justify-center transition-all z-10" id="widget-jog-right" data-jog="right" title="Pan + (hold)" aria-label="Pan plus"><span class="material-symbols-outlined text-[13px]">keyboard_arrow_right</span></button>
+            <button type="button" class="jog-btn absolute left-1 top-1/2 -translate-y-1/2 w-5 h-6 rounded bg-surface-container/90 hover:bg-primary-container hover:text-on-primary-container text-primary flex items-center justify-center transition-all z-10" id="widget-jog-left" data-jog="left" title="Nudge pan − by step · hold to repeat" aria-label="Pan minus"><span class="material-symbols-outlined text-[13px]">keyboard_arrow_left</span></button>
+            <button type="button" class="jog-btn absolute right-1 top-1/2 -translate-y-1/2 w-5 h-6 rounded bg-surface-container/90 hover:bg-primary-container hover:text-on-primary-container text-primary flex items-center justify-center transition-all z-10" id="widget-jog-right" data-jog="right" title="Nudge pan + by step · hold to repeat" aria-label="Pan plus"><span class="material-symbols-outlined text-[13px]">keyboard_arrow_right</span></button>
           </div>
           <!-- Tilt rail height-matched to the 2D disc; live ° overlays track (does not shrink thumb travel) -->
           <div class="tilt-rail tilt-rail--pad">

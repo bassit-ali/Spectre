@@ -82,19 +82,32 @@ cat > "${PAYLOAD}/package.json" <<EOF
 }
 EOF
 
-NODE_VER="${NODE_VERSION:-20.18.2}"
+NODE_VER="${NODE_VERSION:-22.23.5}"
 NODE_NAME="node-v${NODE_VER}-linux-${ARCH}"
 NODE_URL="https://nodejs.org/dist/v${NODE_VER}/${NODE_NAME}.tar.gz"
 NODE_CACHE="${HOME}/.cache/spectre-node-dist"
 mkdir -p "${NODE_CACHE}" "${PAYLOAD}/runtime"
 NODE_TGZ="${NODE_CACHE}/${NODE_NAME}.tar.gz"
-if [[ ! -f "${PAYLOAD}/runtime/bin/node" ]]; then
+NEED_NODE=1
+if [[ -x "${PAYLOAD}/runtime/bin/node" ]]; then
+  HAVE_VER="$("${PAYLOAD}/runtime/bin/node" --version 2>/dev/null || true)"
+  if [[ "${HAVE_VER}" == "v${NODE_VER}" ]]; then
+    NEED_NODE=0
+    echo "    Node runtime already present: ${HAVE_VER}"
+  else
+    echo "==> Replacing bundled Node ${HAVE_VER} -> v${NODE_VER}"
+    rm -rf "${PAYLOAD}/runtime"
+    mkdir -p "${PAYLOAD}/runtime"
+  fi
+fi
+if [[ "${NEED_NODE}" -eq 1 ]]; then
   echo "==> Bundling Node ${NODE_VER} (${ARCH})"
   if [[ ! -f "${NODE_TGZ}" ]]; then
     curl -fsSL "${NODE_URL}" -o "${NODE_TGZ}"
   fi
   tar -xzf "${NODE_TGZ}" -C "${PAYLOAD}/runtime" --strip-components=1
 fi
+printf '%s\n' "${NODE_VER}" > "${PAYLOAD}/runtime/NODE_VERSION.txt"
 
 # Stage pip-shell + Electron for this arch (offline install)
 mkdir -p "${PAYLOAD}/pip-shell"
@@ -125,7 +138,9 @@ echo "==> npm install --omit=dev"
 # Offline essentials check
 for need in \
   "runtime/bin/node" \
+  "runtime/NODE_VERSION.txt" \
   "node_modules/serialport/package.json" \
+  "node_modules/@fastify/static/package.json" \
   "pip-shell/node_modules/electron/dist/electron" \
   "server/dist/src/index.js" \
   "web/dist/index.html"
@@ -135,6 +150,16 @@ do
     exit 1
   fi
 done
+WANT_VER="$(tr -d '[:space:]' < "${PAYLOAD}/runtime/NODE_VERSION.txt")"
+HAVE_VER="$("${PAYLOAD}/runtime/bin/node" --version 2>/dev/null || true)"
+if [[ "${HAVE_VER}" != "v${WANT_VER}" ]]; then
+  echo "ERROR: Node version mismatch: ${HAVE_VER} vs v${WANT_VER}" >&2
+  exit 1
+fi
+if ! (cd "${PAYLOAD}" && ./runtime/bin/node -e "require('@fastify/static'); console.log('ok')"); then
+  echo "ERROR: bundled Node cannot load @fastify/static (ERR_REQUIRE_ESM?)" >&2
+  exit 1
+fi
 
 NOTE="${PAYLOAD}/ARCH.txt"
 {

@@ -30,5 +30,13 @@ if not exist "%SPECTRE_WEB_DIR%\index.html" (
 )
 
 echo [SPECTRE] Starting local service on port 9000 (or saved httpPort)
+echo [SPECTRE] Node: %NODE_EXE%
 "%NODE_EXE%" "%~dp0server\dist\src\index.js"
-exit /b %ERRORLEVEL%
+set "ERR=%ERRORLEVEL%"
+if not "%ERR%"=="0" (
+  echo.
+  echo [SPECTRE] Service exited with code %ERR%.
+  echo [SPECTRE] If you see ERR_REQUIRE_ESM, reinstall from a package that bundles Node 22+.
+  pause
+)
+exit /b %ERR%

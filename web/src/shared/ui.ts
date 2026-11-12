@@ -400,6 +400,8 @@ export function paintSphereAim(
     byId('sphere-aim-core')?.setAttribute('fill', '#dbfcff');
     byId('sphere-aim-h')?.setAttribute('stroke', '#00f0ff');
     byId('sphere-aim-v')?.setAttribute('stroke', '#00f0ff');
+    const aimTag = byId('sphere-aim-label');
+    if (aimTag) aimTag.textContent = fmtPan(pan);
     const dir = byId('sphere-direction-readout');
     const hgt = byId('sphere-height-readout');
     if (dir) dir.textContent = fmtPan(pan);
@@ -426,6 +428,12 @@ export function paintSphereAim(
   ping?.setAttribute('cx', x.toFixed(1));
   ping?.setAttribute('cy', y.toFixed(1));
   ping?.setAttribute('stroke', '#00f0ff');
+  const domeTag = byId('dome-aim-label');
+  if (domeTag) {
+    domeTag.setAttribute('x', x.toFixed(1));
+    domeTag.setAttribute('y', (y - 10).toFixed(1));
+    domeTag.textContent = fmtPanShort(pan);
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -504,6 +512,83 @@ export function bindHoldJog(
         /* optional */
       }
       onStart(flagsFromJog(btn.dataset.jog ?? ''), btn);
+    });
+    btn.addEventListener('pointerup', (e) => release(e.pointerId));
+    btn.addEventListener('pointercancel', (e) => release(e.pointerId));
+    btn.addEventListener('lostpointercapture', (e) => release(e.pointerId));
+  });
+  window.addEventListener('blur', () => release());
+  document.addEventListener('pointerup', (e) => release(e.pointerId));
+}
+
+/**
+ * Degree-step nudges on [data-jog]: one click = ±getStep()° closed-loop goto;
+ * hold repeats the same nudge on an interval (not free-speed jog).
+ */
+export function bindDegreeNudge(opts: {
+  getStep: () => number;
+  getPose: () => { pan?: number | null; tilt?: number | null } | null;
+  onNudge: (target: { pan?: number; tilt?: number }, flags: MoveFlags, el: HTMLElement) => void;
+  onIdle?: () => void;
+  repeatMs?: number;
+}): void {
+  const repeatMs = opts.repeatMs ?? 450;
+  let activePointer: number | null = null;
+  let held = false;
+  let timer: number | undefined;
+  let activeBtn: HTMLElement | null = null;
+  let activeFlags: MoveFlags = {};
+
+  const fire = () => {
+    if (!activeBtn) return;
+    const step = Math.max(0.05, opts.getStep());
+    const p = opts.getPose();
+    const pan0 = p?.pan;
+    const tilt0 = p?.tilt;
+    const target: { pan?: number; tilt?: number } = {};
+    if (activeFlags.left || activeFlags.right) {
+      const base = pan0 != null && Number.isFinite(pan0) ? pan0 : 0;
+      const delta = activeFlags.left ? -step : step;
+      target.pan = normalizePanCommand(base + delta);
+    }
+    if (activeFlags.up || activeFlags.down) {
+      const base = tilt0 != null && Number.isFinite(tilt0) ? tilt0 : 0;
+      const delta = activeFlags.up ? step : -step;
+      target.tilt = clamp(base + delta, TILT_MIN, TILT_MAX);
+    }
+    if (target.pan == null && target.tilt == null) return;
+    opts.onNudge(target, activeFlags, activeBtn);
+  };
+
+  const release = (pointerId?: number) => {
+    if (!held) return;
+    if (pointerId != null && activePointer != null && pointerId !== activePointer) return;
+    held = false;
+    activePointer = null;
+    activeBtn = null;
+    activeFlags = {};
+    if (timer != null) {
+      window.clearInterval(timer);
+      timer = undefined;
+    }
+    opts.onIdle?.();
+  };
+
+  qsa('[data-jog]').forEach((btn) => {
+    btn.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      activePointer = e.pointerId;
+      held = true;
+      activeBtn = btn;
+      activeFlags = flagsFromJog(btn.dataset.jog ?? '');
+      try {
+        btn.setPointerCapture(e.pointerId);
+      } catch {
+        /* optional */
+      }
+      fire();
+      timer = window.setInterval(fire, repeatMs);
     });
     btn.addEventListener('pointerup', (e) => release(e.pointerId));
     btn.addEventListener('pointercancel', (e) => release(e.pointerId));

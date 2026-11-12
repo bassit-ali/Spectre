@@ -26,6 +26,7 @@ Need 'node_modules\fastify\package.json' 'fastify'
 Need 'node_modules\ws\package.json' 'ws'
 Need 'pip-shell\main.js' 'pip-shell main'
 Need 'pip-shell\package.json' 'pip-shell package.json'
+Need 'runtime\NODE_VERSION.txt' 'runtime/NODE_VERSION.txt'
 
 switch ($Kind) {
   'win-x64' {
@@ -56,4 +57,38 @@ if ($missing.Count -gt 0) {
   throw "Payload incomplete for $Kind — missing: $($missing -join ', ')"
 }
 
-Write-Host "    Payload OK ($Kind): Node + npm deps + serialport prebuild + Electron"
+$wantVer = (Get-Content (Join-Path $PayloadDir 'runtime\NODE_VERSION.txt') -Raw).Trim()
+if (-not $wantVer) { throw "runtime/NODE_VERSION.txt empty for $Kind" }
+
+$nodeBin = if ($Kind -eq 'win-x64') {
+  Join-Path $PayloadDir 'runtime\node.exe'
+} else {
+  Join-Path $PayloadDir 'runtime\bin\node'
+}
+
+# Only execute require-smoke when the binary matches this host OS.
+$canExec = $false
+if ($Kind -eq 'win-x64' -and $IsWindows -ne $false -and $env:OS -match 'Windows') {
+  $canExec = $true
+} elseif ($Kind -ne 'win-x64' -and $IsLinux) {
+  $canExec = $true
+}
+
+if ($canExec) {
+  Push-Location $PayloadDir
+  try {
+    $verOut = & $nodeBin --version 2>&1
+    if ("$verOut" -ne "v$wantVer") {
+      throw "Payload Node version mismatch ($Kind): got $verOut want v$wantVer"
+    }
+    $smoke = & $nodeBin -e "require('@fastify/static'); console.log('ok')" 2>&1
+    if ($LASTEXITCODE -ne 0 -or ("$smoke" -notmatch 'ok')) {
+      throw "Payload smoke failed ($Kind): bundled Node cannot load @fastify/static. Output: $smoke"
+    }
+  } finally {
+    Pop-Location
+  }
+  Write-Host "    Payload OK ($Kind): Node v$wantVer + npm deps + serialport + Electron + static smoke"
+} else {
+  Write-Host "    Payload OK ($Kind): files present; Node pin $wantVer (cross-pack — skipped native smoke)"
+}

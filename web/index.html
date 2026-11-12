@@ -43,6 +43,11 @@
         <span class="font-label-telemetry-sm text-label-telemetry-sm text-on-surface" data-bind="ws-latency">—</span>
       </div>
     </div>
+    <button id="header-open-settings-btn" data-action="open-settings" type="button" title="Jump to Link · Drive · Widget settings"
+      class="console-action-btn flex items-center gap-1 bg-surface-container hover:bg-surface-container-high text-secondary font-label-code text-label-code uppercase font-bold px-space-sm rounded transition-colors">
+      <span class="material-symbols-outlined icon-sm">tune</span>
+      <span class="hidden sm:inline">Settings</span>
+    </button>
     <button id="header-open-widget-btn" data-action="open-widget" type="button"
       class="console-action-btn flex items-center gap-1 bg-surface-container hover:bg-surface-container-high text-primary font-label-code text-label-code uppercase font-bold px-space-sm rounded transition-colors">
       <span class="material-symbols-outlined icon-sm">picture_in_picture_alt</span>
@@ -160,6 +165,7 @@
                       <circle id="sphere-aim-core" cx="0" cy="0" fill="#dbfcff" r="3.5"></circle>
                       <line id="sphere-aim-h" stroke="#00f0ff" stroke-width="1" x1="-11" x2="11" y1="0" y2="0"></line>
                       <line id="sphere-aim-v" stroke="#00f0ff" stroke-width="1" x1="0" x2="0" y1="-11" y2="11"></line>
+                      <text id="sphere-aim-label" x="0" y="-16" text-anchor="middle" fill="#dbfcff" font-size="9" font-weight="700" style="fill:#dbfcff">—°</text>
                     </g>
                   </g>
                   <g id="sphere-pan-badges" pointer-events="none" aria-label="Camera sectors A 0 B 120 C 240"></g>
@@ -198,10 +204,10 @@
                 </div>
               </div>
               <div class="flex items-center gap-1">
-                <button type="button" id="jog-left" data-jog="left" title="Pan − (hold)" class="jog-btn console-ctrl-btn console-btn-label bg-surface-container-high hover:bg-surface-container-highest text-primary font-label-code rounded uppercase font-bold">◀ PAN −</button>
-                <button type="button" id="jog-right" data-jog="right" title="Pan + (hold)" class="jog-btn console-ctrl-btn console-btn-label bg-surface-container-high hover:bg-surface-container-highest text-primary font-label-code rounded uppercase font-bold">PAN + ▶</button>
-                <button type="button" id="jog-up" data-jog="up" title="Tilt up +" class="jog-btn console-ctrl-btn console-btn-label bg-surface-container-high hover:bg-surface-container-highest text-secondary font-label-code rounded uppercase font-bold">▲ UP +</button>
-                <button type="button" id="jog-down" data-jog="down" title="Tilt down −" class="jog-btn console-ctrl-btn console-btn-label bg-surface-container-high hover:bg-surface-container-highest text-secondary font-label-code rounded uppercase font-bold">DOWN − ▼</button>
+                <button type="button" id="jog-left" data-jog="left" title="Nudge pan − by step · hold to repeat" class="jog-btn console-ctrl-btn console-btn-label bg-surface-container-high hover:bg-surface-container-highest text-primary font-label-code rounded uppercase font-bold">◀ PAN −</button>
+                <button type="button" id="jog-right" data-jog="right" title="Nudge pan + by step · hold to repeat" class="jog-btn console-ctrl-btn console-btn-label bg-surface-container-high hover:bg-surface-container-highest text-primary font-label-code rounded uppercase font-bold">PAN + ▶</button>
+                <button type="button" id="jog-up" data-jog="up" title="Nudge tilt up by step · hold to repeat" class="jog-btn console-ctrl-btn console-btn-label bg-surface-container-high hover:bg-surface-container-highest text-secondary font-label-code rounded uppercase font-bold">▲ UP +</button>
+                <button type="button" id="jog-down" data-jog="down" title="Nudge tilt down by step · hold to repeat" class="jog-btn console-ctrl-btn console-btn-label bg-surface-container-high hover:bg-surface-container-highest text-secondary font-label-code rounded uppercase font-bold">DOWN − ▼</button>
               </div>
             </div>
           </div>

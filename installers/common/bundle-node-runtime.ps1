@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   Download an official Node.js binary distribution into payload/runtime/
@@ -13,7 +13,9 @@ param(
   [string]$PayloadDir,
 
   # Pin a known LTS; bump intentionally when packaging.
-  [string]$NodeVersion = '20.18.2'
+  # Need >=20.19 (or 22+) so require() can load ESM-only deps such as
+  # content-disposition@3 used by @fastify/static — Node 20.18 throws ERR_REQUIRE_ESM.
+  [string]$NodeVersion = '22.23.5'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,8 +48,15 @@ switch ($Platform) {
 }
 
 if ((Test-Path $marker) -and ((Get-Item $marker).Length -gt 1MB)) {
-  Write-Host "    Node runtime already present: $marker"
-  return
+  $have = & $marker --version 2>$null
+  if ($have -eq "v$NodeVersion") {
+    Set-Content -Path (Join-Path $runtime 'NODE_VERSION.txt') -Value $NodeVersion -Encoding ASCII
+    Write-Host "    Node runtime already present: $marker ($have)"
+    return
+  }
+  Write-Host "    Replacing bundled Node $have -> v$NodeVersion"
+  Remove-Item -LiteralPath $runtime -Recurse -Force -ErrorAction SilentlyContinue
+  New-Item -ItemType Directory -Force -Path $runtime | Out-Null
 }
 
 if (-not (Test-Path $archive) -or (Get-Item $archive).Length -lt 1MB) {
@@ -90,5 +99,6 @@ if (-not (Test-Path $marker)) {
   throw "Node runtime missing after extract: expected $marker"
 }
 
+Set-Content -Path (Join-Path $runtime 'NODE_VERSION.txt') -Value $NodeVersion -Encoding ASCII
 $ver = & $marker --version 2>$null
 Write-Host "    Bundled Node OK: $marker ($ver)"

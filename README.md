@@ -5,7 +5,7 @@ Local Pelco-D pan/tilt controller — web console on `127.0.0.1:9000`, optional 
 [![Release](https://img.shields.io/github/v/release/bassit-ali/Spectre?style=flat-square)](https://github.com/bassit-ali/Spectre/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
 
-**v1.1.4** · [Downloads](https://github.com/bassit-ali/Spectre/releases/tag/v1.1.4) · Console: http://127.0.0.1:9000/ · Widget: http://127.0.0.1:9000/widget.html
+**v1.1.5** · [Downloads](https://github.com/bassit-ali/Spectre/releases/tag/v1.1.5) · Console: http://127.0.0.1:9000/ · Widget: http://127.0.0.1:9000/widget.html
 
 ![SPECTRE console](docs/screenshots/console.png)
 
@@ -22,7 +22,7 @@ Release packages are **fully offline**. They already include Node.js, production
 | File | Platform |
 |------|----------|
 | **SPECTRE-Setup.exe** | Windows x64 (recommended) |
-| `SPECTRE-windows-x64-v1.1.4.zip` | Windows portable + `install.ps1` |
+| `SPECTRE-windows-x64-v1.1.5.zip` | Windows portable + `install.ps1` |
 | `spectre-linux-x64.tar.gz` | Linux x86_64 |
 | `spectre-linux-arm64.tar.gz` | Linux ARM64 / Pi |
 | `SPECTRE-Install-Guide.pdf` | Printable guide |
@@ -58,7 +58,7 @@ Full step-by-step: [docs/INSTALL.md — OS / hardware setup](docs/INSTALL.md#os-
 Portable path:
 
 ```powershell
-Expand-Archive SPECTRE-windows-x64-v1.1.4.zip -DestinationPath C:\Temp\spectre
+Expand-Archive SPECTRE-windows-x64-v1.1.5.zip -DestinationPath C:\Temp\spectre
 cd C:\Temp\spectre
 .\install.ps1   # elevated
 ```
@@ -162,6 +162,7 @@ docs/        INSTALL.md, RELEASE.md, screenshots/
 | Widget missing | Need a logged-on desktop session; or open `/widget.html` in a browser |
 | Linux serial denied | `groups` must show `dialout` — log out/in after install, replug |
 | Native module mismatch | `PATH="$PWD/runtime/bin:$PATH" npm rebuild serialport` then restart |
+| Console opens but page empty / ERR_REQUIRE_ESM | Old package with Node 20.18 | Install v1.1.5+ (bundled Node 22) |
 
 ```bash
 curl http://127.0.0.1:9000/health
