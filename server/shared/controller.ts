@@ -84,6 +84,8 @@ export class MotionController extends EventEmitter {
   private moving = false;
   /** Set by service when a newer goto supersedes the in-flight one. */
   private abortGoto = false;
+  /** Resolves an in-flight runApproachLoop promise (must not leave it hanging on HALT). */
+  private approachResolve: (() => void) | null = null;
   /**
    * When true, swap logical up/down before TX. Only latched by an explicit
    * calibrate — not during normal goto (encoding transitions near 0° looked
@@ -239,7 +241,10 @@ export class MotionController extends EventEmitter {
 
   async stop(): Promise<void> {
     this.abortGoto = true;
-    this.clearGoto();
+    // Must resolve the approach-loop promise: clearTimeout alone leaves
+    // gotoAbsolute awaiting forever, which sticks SpectreService.gotoRunner
+    // and makes the pan sphere look dead after HALT.
+    this.clearGoto(true);
     this.clearJogKeepalive();
     this.jogging = false;
     this.moving = false;
@@ -581,6 +586,15 @@ export class MotionController extends EventEmitter {
     const { approach } = this.settings;
 
     await new Promise<void>((resolve) => {
+      let settled = false;
+      const done = () => {
+        if (settled) return;
+        settled = true;
+        if (this.approachResolve === done) this.approachResolve = null;
+        resolve();
+      };
+      this.approachResolve = done;
+
       const startedAt = Date.now();
       const maxMs = 60000;
       let tickN = 0;
@@ -596,19 +610,29 @@ export class MotionController extends EventEmitter {
       const coastPan = Math.max(1.8, deadband * 3);
       const coastTilt = Math.max(2.2, deadband * 3.5);
 
+      const schedule = (ms: number) => {
+        if (settled || this.abortGoto) {
+          this.clearGoto();
+          done();
+          return;
+        }
+        this.gotoTimer = setTimeout(() => void tick(), ms);
+      };
+
       const tick = async () => {
         try {
+          if (settled) return;
           if (this.abortGoto) {
             await this.port.write(stopCommand(this.settings.address)).catch(() => undefined);
             this.clearGoto();
-            resolve();
+            done();
             return;
           }
           if (Date.now() - startedAt > maxMs) {
             await this.port.write(stopCommand(this.settings.address));
             this.clearGoto();
             this.emit('error', new Error('Goto timeout'));
-            resolve();
+            done();
             return;
           }
 
@@ -628,7 +652,7 @@ export class MotionController extends EventEmitter {
             await this.port.write(stopCommand(this.settings.address)).catch(() => undefined);
             this.clearGoto();
             this.emit('error', new Error('Goto stalled (no progress)'));
-            resolve();
+            done();
             return;
           }
           const near =
@@ -664,7 +688,7 @@ export class MotionController extends EventEmitter {
             (target.panTravel != null && this.panTravel == null) ||
             (target.tilt != null && this.pose.tilt == null)
           ) {
-            this.gotoTimer = setTimeout(() => void tick(), approach.pollMs);
+            schedule(approach.pollMs);
             return;
           }
 
@@ -685,10 +709,10 @@ export class MotionController extends EventEmitter {
             await this.port.write(stopCommand(this.settings.address));
             if (settleHits >= settleNeed) {
               this.clearGoto();
-              resolve();
+              done();
               return;
             }
-            this.gotoTimer = setTimeout(() => void tick(), Math.max(90, Math.floor(approach.pollMs * 0.7)));
+            schedule(Math.max(90, Math.floor(approach.pollMs * 0.7)));
             return;
           }
           settleHits = 0;
@@ -701,7 +725,7 @@ export class MotionController extends EventEmitter {
               flags,
             });
             this.clearGoto();
-            resolve();
+            done();
             return;
           }
 
@@ -721,7 +745,7 @@ export class MotionController extends EventEmitter {
               await this.port.write(queryTilt(this.settings.address));
               await delay(45);
             }
-            this.gotoTimer = setTimeout(() => void tick(), 70);
+            schedule(70);
             return;
           }
 
@@ -750,6 +774,11 @@ export class MotionController extends EventEmitter {
           }
 
           await this.writeMove(flags, panSpd, tiltSpd);
+          if (settled || this.abortGoto) {
+            this.clearGoto();
+            done();
+            return;
+          }
           // Near-target: pulse then hard-stop so we don't run through the band.
           if (needTilt && !needPan && Math.abs(tiltErr) <= 4) {
             await delay(90);
@@ -757,7 +786,7 @@ export class MotionController extends EventEmitter {
             await delay(100);
             await this.port.write(queryTilt(this.settings.address));
             await delay(45);
-            this.gotoTimer = setTimeout(() => void tick(), 60);
+            schedule(60);
             return;
           }
           if (needPan && !needTilt && Math.abs(panErr) <= 2.5) {
@@ -766,13 +795,12 @@ export class MotionController extends EventEmitter {
             await delay(80);
             await this.port.write(queryPan(this.settings.address));
             await delay(35);
-            this.gotoTimer = setTimeout(() => void tick(), 60);
+            schedule(60);
             return;
           }
 
           const basePoll = Math.max(70, approach.pollMs);
-          this.gotoTimer = setTimeout(
-            () => void tick(),
+          schedule(
             finalApproach
               ? Math.max(55, Math.floor(basePoll * 0.5))
               : near
@@ -782,7 +810,7 @@ export class MotionController extends EventEmitter {
         } catch (err) {
           this.emit('error', err);
           this.clearGoto();
-          resolve();
+          done();
         }
       };
       void tick();
@@ -806,10 +834,19 @@ export class MotionController extends EventEmitter {
     return true;
   }
 
-  private clearGoto(): void {
+  /**
+   * Drop the scheduled approach tick. When resolveApproach is true (HALT/stop),
+   * also complete the waiting Promise so callers are not stuck forever.
+   */
+  private clearGoto(resolveApproach = false): void {
     if (this.gotoTimer) {
       clearTimeout(this.gotoTimer);
       this.gotoTimer = null;
+    }
+    if (resolveApproach && this.approachResolve) {
+      const r = this.approachResolve;
+      this.approachResolve = null;
+      r();
     }
   }
 
