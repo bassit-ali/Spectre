@@ -867,11 +867,19 @@ export class SpectreService extends EventEmitter {
     this.pendingGoto = null;
     this.activeGoto = null;
     this.motion.requestAbortGoto();
-    this.mode = 'idle';
+    const runner = this.gotoRunner;
     // Stop must always try; ignore serial-closed errors.
     await this.motion.stop().catch((err) => {
       if (this.port.getStatus().connected) throw err;
     });
+    // motion.stop() resolves the approach loop; wait briefly then force-clear
+    // so a subsequent sphere click always starts a fresh runner.
+    if (runner) {
+      await Promise.race([runner.catch(() => undefined), delay(750)]);
+    }
+    this.gotoRunner = null;
+    this.activeGoto = null;
+    this.mode = 'idle';
   }
 
   /** Run a long closed-loop move in the background; errors are logged + pushed. */
