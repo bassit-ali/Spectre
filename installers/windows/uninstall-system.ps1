@@ -4,11 +4,10 @@
   Remove the all-users SPECTRE install so the listen port is free for development.
 
 .DESCRIPTION
-  Stops any SPECTRE node process, deletes Scheduled Task + HKLM Run autostart,
-  removes Start Menu shortcuts, and deletes C:\Program Files\SPECTRE\.
-
-  Use this before `npm run server:start` / local regression if the installer
-  was previously run on this machine.
+  Stops any SPECTRE node/Electron process, deletes Scheduled Task + HKLM Run
+  autostart, removes Start Menu shortcuts (all-users + current user), clears
+  uninstall registry, deletes C:\Program Files\SPECTRE\, and removes the
+  desktop workaround launcher if present.
 
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File .\installers\windows\uninstall-system.ps1
@@ -39,14 +38,38 @@ Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyCon
     Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
   }
 
+Get-Process electron -ErrorAction SilentlyContinue | ForEach-Object {
+  try {
+    if ($_.Path -match 'SPECTRE|pip-shell|spectre-pip-shell') {
+      Write-Host "    Stopping Electron PID $($_.Id)"
+      Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue
+    }
+  } catch {}
+}
+
 schtasks /Delete /TN 'SPECTRE' /F 2>$null | Out-Null
 Remove-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'SPECTRE' -ErrorAction SilentlyContinue
+Remove-Item -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\SPECTRE' -Recurse -Force -ErrorAction SilentlyContinue
 
-$sm = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\SPECTRE'
-if (Test-Path $sm) { Remove-Item $sm -Recurse -Force }
+foreach ($sm in @(
+  (Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\SPECTRE'),
+  (Join-Path $env:AppData 'Microsoft\Windows\Start Menu\Programs\SPECTRE')
+)) {
+  if (Test-Path $sm) {
+    Write-Host "    Removing Start Menu: $sm"
+    Remove-Item $sm -Recurse -Force
+  }
+}
+
+$desktopWorkaround = Join-Path $env:USERPROFILE 'Desktop\Start SPECTRE (fixed).cmd'
+if (Test-Path $desktopWorkaround) {
+  Write-Host "    Removing $desktopWorkaround"
+  Remove-Item $desktopWorkaround -Force
+}
 
 $inst = Join-Path ${env:ProgramFiles} 'SPECTRE'
 if (Test-Path $inst) {
+  Write-Host "    Removing $inst"
   Start-Sleep -Seconds 1
   Remove-Item -LiteralPath $inst -Recurse -Force -ErrorAction SilentlyContinue
   if (Test-Path $inst) { cmd /c "rmdir /s /q `"$inst`"" | Out-Null }

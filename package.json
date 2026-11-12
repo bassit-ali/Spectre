@@ -1,6 +1,6 @@
 {
   "name": "spectre",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "SPECTRE — Pelco-D pan/tilt pedestal controller (local web console + Electron overlay).",
   "main": "server/dist/src/index.js",
   "author": "bassit-ali",

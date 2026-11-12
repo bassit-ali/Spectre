@@ -6,7 +6,7 @@ import {
   TILT_MAX,
   TILT_MIN,
   bindActions,
-  bindHoldJog,
+  bindDegreeNudge,
   bindSphereControl,
   bindText,
   byId,
@@ -401,6 +401,7 @@ function readNum(id: string): number | null {
 
 bindActions({
   halt: () => {
+    sphereDragging = false;
     flash(['ring-2', 'ring-error']);
     tx({ type: 'halt', source: 'widget' });
   },
@@ -480,19 +481,21 @@ document.addEventListener('pointerdown', (ev) => {
   setOpacityPopover(false);
 });
 
-bindHoldJog(
-  (flags, el) => {
+bindDegreeNudge({
+  getStep: () => STEP_BY_MODE[mode],
+  getPose: () => pose,
+  onNudge: (target, _flags, el) => {
     el.classList.add('is-held');
-    tx({ type: 'jog', flags, step: STEP_BY_MODE[mode], mode, source: 'widget' });
+    tx({ type: 'goto', pan: target.pan, tilt: target.tilt, source: 'widget' });
   },
-  () => {
+  onIdle: () => {
     qsa('.jog-btn').forEach((b) => b.classList.remove('is-held'));
-    tx({ type: 'stop', source: 'widget' }, false);
   },
-);
+});
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    sphereDragging = false;
     flash(['ring-2', 'ring-error']);
     tx({ type: 'halt', source: 'widget' });
   }

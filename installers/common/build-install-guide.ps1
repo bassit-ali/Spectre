@@ -6,7 +6,7 @@
 [CmdletBinding()]
 param(
   [string]$RepoRoot = '',
-  [string]$Version = '1.1.4'
+  [string]$Version = '1.1.5'
 )
 
 $ErrorActionPreference = 'Stop'

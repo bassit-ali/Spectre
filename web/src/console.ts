@@ -22,7 +22,7 @@ import {
   bindActions,
   bindCopyChips,
   bindEndpointChips,
-  bindHoldJog,
+  bindDegreeNudge,
   bindText,
   byId,
   clamp,
@@ -397,15 +397,34 @@ function readNum(id: string): number | null {
   return Number.isFinite(v) ? v : null;
 }
 
+function resetSphereDrag(): void {
+  sphereDragging = false;
+}
+
 function halt(): void {
+  resetSphereDrag();
   setMotion('HALTED');
   tx({ type: 'halt', source: 'console' });
   window.setTimeout(() => setMotion('IDLE'), 1200);
 }
 
+function openSettings(): void {
+  const sec = byId('sec-settings');
+  if (!sec) return;
+  try {
+    history.replaceState(null, '', '#settings');
+  } catch {
+    /* ignore */
+  }
+  sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  sec.classList.add('ring-1', 'ring-primary/50');
+  window.setTimeout(() => sec.classList.remove('ring-1', 'ring-primary/50'), 1200);
+}
+
 bindActions({
   /* ---- motion ---- */
   halt: () => halt(),
+  'open-settings': () => openSettings(),
   home: () => {
     setMotion('HOMING → 0° / 0°');
     tx({ type: 'home', source: 'console' });
@@ -597,24 +616,29 @@ bindActions({
   'log-clear': () => byId('wire-log')?.replaceChildren(),
 });
 
-/* hold-to-jog on [data-jog] */
-bindHoldJog(
-  (flags, el) => {
+/* Degree nudges on [data-jog] — 1°/5°/10° closed-loop goto; hold repeats */
+bindDegreeNudge({
+  getStep: () => jogStep,
+  getPose: () => pose,
+  onNudge: (target, _flags, el) => {
     el.classList.add('is-held');
-    setMotion('JOGGING');
-    tx({ type: 'jog', flags, step: jogStep, source: 'console' });
+    setMotion(`NUDGE ${jogStep}°`);
+    tx({ type: 'goto', pan: target.pan, tilt: target.tilt, source: 'console' });
   },
-  () => {
+  onIdle: () => {
     qsa('.jog-btn').forEach((b) => b.classList.remove('is-held'));
     setMotion('IDLE');
-    tx({ type: 'stop', source: 'console' }, false);
   },
-);
+});
 
 /* Escape = HALT, anywhere in the console */
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') halt();
 });
+
+if (location.hash === '#settings') {
+  window.requestAnimationFrame(() => openSettings());
+}
 
 /* ====================================================================== */
 /* Server messages                                                        */

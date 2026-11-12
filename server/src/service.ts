@@ -862,6 +862,12 @@ export class SpectreService extends EventEmitter {
   }
 
   async stop(): Promise<void> {
+    // Cancel sphere goto flight the same way home does — otherwise HALT stops
+    // motors but leaves gotoRunner stuck and the pan pad looks dead.
+    this.pendingGoto = null;
+    this.activeGoto = null;
+    this.motion.requestAbortGoto();
+    this.mode = 'idle';
     // Stop must always try; ignore serial-closed errors.
     await this.motion.stop().catch((err) => {
       if (this.port.getStatus().connected) throw err;

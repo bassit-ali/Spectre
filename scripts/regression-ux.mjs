@@ -127,6 +127,11 @@ async function sectionConsoleCopy() {
   assert('console eth apply action', hasAction(text, 'eth-apply'));
   assert('console prefer udp default off', hasText(text, 'id="prefer-udp-check"[^>]*type="checkbox"') && !hasText(text, 'id="prefer-udp-check"[^>]*checked'));
   assert('console factory udp seed visible', hasText(text, '192\\.168\\.8\\.200') && hasText(text, 'value="6666"'));
+  assert('console settings jump action', hasAction(text, 'open-settings'));
+  assert('console settings section', hasId(text, 'sec-settings'));
+  assert('console sphere aim degree tag', hasId(text, 'sphere-aim-label'));
+  assert('console step 1/5/10 buttons', hasText(text, 'data-step="1"') && hasText(text, 'data-step="5"') && hasText(text, 'data-step="10"'));
+  assert('console nudge titles', hasText(text, 'Nudge pan') && hasText(text, 'hold to repeat'));
 }
 
 async function sectionWidgetCopy() {
@@ -176,6 +181,8 @@ async function sectionWidgetCopy() {
   assert('widget no credit footer', !/26 SIG|R&D WING/i.test(text));
   assert('widget offline banner', hasId(text, 'widget-offline-banner') && hasText(text, 'No device connected'));
   assert('widget open-console on SPECTRE', hasAction(text, 'open-console') && hasId(text, 'product-name'));
+  assert('widget dome aim degree tag', hasId(text, 'dome-aim-label'));
+  assert('widget nudge titles', hasText(text, 'Nudge pan') && hasText(text, 'hold to repeat'));
 }
 
 async function sectionParity() {

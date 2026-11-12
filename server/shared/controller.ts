@@ -247,7 +247,8 @@ export class MotionController extends EventEmitter {
     this.jogFlags = {};
     this.jogTick = 0;
     await this.port.write(stopCommand(this.settings.address));
-    this.abortGoto = false;
+    // Leave abortGoto true until the next intentional jog/goto starts so an
+    // in-flight approach loop cannot miss a one-shot abort pulse from HALT.
     this.emit('state', { mode: 'idle' });
   }
 
@@ -268,6 +269,7 @@ export class MotionController extends EventEmitter {
       });
       return;
     }
+    this.abortGoto = false;
     this.clearGoto();
     this.jogging = true;
     this.moving = true;

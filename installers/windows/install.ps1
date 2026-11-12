@@ -166,7 +166,17 @@ Write-Host "  See OS-PREREQS.txt in the install folder / SPECTRE-Install-Guide.p
 
 if (-not $SkipLaunch) {
   Start-Process -FilePath $launcher -WorkingDirectory $InstallDir -WindowStyle Minimized
-  Start-Sleep -Seconds 2
+  $ready = $false
+  for ($i = 0; $i -lt 30; $i++) {
+    Start-Sleep -Milliseconds 500
+    try {
+      $h = Invoke-WebRequest -Uri 'http://127.0.0.1:9000/health' -UseBasicParsing -TimeoutSec 1
+      if ($h.StatusCode -eq 200) { $ready = $true; break }
+    } catch {}
+  }
+  if (-not $ready) {
+    Write-Warning 'SPECTRE did not answer /health within 15s. Check the SPECTRE console window for errors.'
+  }
   Start-Process $Url
 }
 

@@ -7,7 +7,7 @@
 ;   server\dist\, web\dist\, pip-shell\, node_modules\, package.json, spectre.cmd, install.ps1
 
 !ifndef PRODUCT_VERSION
-  !define PRODUCT_VERSION "1.1.4"
+  !define PRODUCT_VERSION "1.1.5"
 !endif
 
 !define PRODUCT_NAME "SPECTRE"
@@ -109,8 +109,9 @@ Section "SPECTRE" SecMain
   WriteRegDWORD HKLM "${REG_UNINSTALL}" "NoModify" 1
   WriteRegDWORD HKLM "${REG_UNINSTALL}" "NoRepair" 1
 
-  ; Launch service + open browser
+  ; Launch service, wait briefly for /health, then open browser
   Exec '"$INSTDIR\spectre.cmd"'
+  nsExec::ExecToLog 'powershell -NoProfile -ExecutionPolicy Bypass -Command "for ($$i=0; $$i -lt 30; $$i++) { Start-Sleep -Milliseconds 500; try { $$r = Invoke-WebRequest -Uri ''http://127.0.0.1:9000/health'' -UseBasicParsing -TimeoutSec 1; if ($$r.StatusCode -eq 200) { exit 0 } } catch {} }; exit 1"'
   ExecShell "open" "${PRODUCT_URL}"
 SectionEnd
 
