@@ -1,0 +1,11 @@
+---
+description: Commit only as Bassit Ali; never attribute commits to Cursor
+alwaysApply: true
+---
+
+# Git identity
+
+- Always author and committer: **Bassit Ali** `<markhor.0026@gmail.com>`
+- Never add `Co-authored-by: Cursor` or any Cursor/`cursoragent` trailer
+- Never commit as Cursor, cursoragent, or any AI identity
+- Prefer `git -c user.name="Bassit Ali" -c user.email="markhor.0026@gmail.com"` when making commits if identity is unset
