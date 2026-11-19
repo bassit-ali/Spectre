@@ -92,13 +92,16 @@ if [[ -d "${INSTALL_DIR}/runtime/bin" ]]; then
 fi
 ELECTRON_BIN="${INSTALL_DIR}/pip-shell/node_modules/electron/dist/electron"
 if [[ -f "${ELECTRON_BIN}" ]]; then
+  # Desktop user (not root) must be able to execute Electron when Open Widget drops privileges.
+  chmod -R a+rX "${INSTALL_DIR}/pip-shell" 2>/dev/null || true
   chmod +x "${ELECTRON_BIN}" 2>/dev/null || true
+  find "${INSTALL_DIR}/pip-shell/node_modules/electron/dist" -type f \( -name 'chrome*' -o -name 'electron*' -o -name '*.bin' \) -exec chmod +x {} + 2>/dev/null || true
   # chrome-sandbox needs root ownership + setuid when present; ignore if missing
   if [[ -f "${INSTALL_DIR}/pip-shell/node_modules/electron/dist/chrome-sandbox" ]]; then
     chown root:root "${INSTALL_DIR}/pip-shell/node_modules/electron/dist/chrome-sandbox" 2>/dev/null || true
     chmod 4755 "${INSTALL_DIR}/pip-shell/node_modules/electron/dist/chrome-sandbox" 2>/dev/null || true
   fi
-  echo "    Electron overlay binary present (offline)"
+  echo "    Electron overlay binary present (offline — Open Widget uses your desktop session)"
 else
   echo "WARN: Electron binary not in package — browser widget still works at ${URL}widget.html" >&2
 fi
@@ -145,8 +148,9 @@ echo
 echo "OS pieces this package cannot ship (set up once):"
 echo "  - USB-serial driver/modules so /dev/ttyUSB* or /dev/ttyACM* exists"
 echo "  - dialout group (install.sh tried to add you — log out/in once)"
-echo "  - Desktop session only if you need the Electron overlay"
+echo "  - Stay logged into the local desktop so Open Widget can show the always-on-top overlay"
 echo "  Details: SPECTRE-Install-Guide.pdf / docs/INSTALL.md"
 if [[ -n "${SUDO_USER:-}" ]]; then
   echo "  Next: log out/in as ${SUDO_USER}, plug the adapter, open ${URL}"
+  echo "  Widget: click Open in Settings (overlay). Fallback: ${URL}widget.html"
 fi

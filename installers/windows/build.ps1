@@ -6,7 +6,7 @@
 [CmdletBinding()]
 param(
   [switch]$SkipNpmInstall,
-  [string]$Version = '1.1.7',
+  [string]$Version = '1.1.8',
   # Authenticode-sign SPECTRE-Setup.exe when cert env vars are set (see docs/CODE-SIGNING.md)
   [switch]$Sign,
   [switch]$SkipSign

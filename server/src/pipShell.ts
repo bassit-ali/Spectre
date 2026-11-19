@@ -1,11 +1,11 @@
 import { ChildProcess, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
-import { linuxGuiEnv, linuxHasDisplay } from './linuxDisplay';
+import { linuxHasDisplay, resolveLinuxGuiSession } from './linuxDisplay';
 
 /**
  * Launch / stop the always-on-top Electron pip-shell that hosts widget.html
- * as a real desktop overlay (not a browser popup).
+ * as a real desktop overlay (same idea as Windows — not a browser tab).
  */
 export class PipShellManager {
   private child: ChildProcess | null = null;
@@ -31,13 +31,13 @@ export class PipShellManager {
     }
     if (this.starting) return { ok: true, detail: 'starting' };
 
-    const guiEnv = process.platform === 'linux' ? linuxGuiEnv(process.env) : { ...process.env };
-    // Headless Linux/systemd with no graphical session — browser widget still works.
-    if (process.platform === 'linux' && !linuxHasDisplay(guiEnv)) {
+    const session =
+      process.platform === 'linux' ? resolveLinuxGuiSession(process.env) : { env: { ...process.env } };
+    if (process.platform === 'linux' && !linuxHasDisplay(session)) {
       return {
         ok: false,
         detail:
-          'no desktop display (systemd is headless) — open http://127.0.0.1:9000/widget.html in the browser',
+          'no desktop session logged in — log into the Linux GUI, then click Open Widget again (browser tab is only a last resort: /widget.html)',
         browserFallback: true,
       };
     }
@@ -64,36 +64,64 @@ export class PipShellManager {
         : `${this.widgetUrl}?bg=transparent`;
 
       const opacity = Math.max(0.4, Math.min(1, Number(this.getOpacity()) || 0.95));
+      const asRoot = typeof process.getuid === 'function' && process.getuid() === 0;
+      const dropUser =
+        process.platform === 'linux' &&
+        asRoot &&
+        typeof session.uid === 'number' &&
+        session.uid > 0 &&
+        typeof session.gid === 'number';
+
       this.log(
         'info',
         `starting pip-shell (auto-dock=${this.getAutoDock() ? 'on' : 'off'} pin=${this.getPinned() ? 'on' : 'off'} opacity=${opacity}` +
-          (guiEnv.DISPLAY ? ` display=${guiEnv.DISPLAY}` : '') +
-          (guiEnv.WAYLAND_DISPLAY ? ` wayland=${guiEnv.WAYLAND_DISPLAY}` : '') +
+          (session.env.DISPLAY ? ` display=${session.env.DISPLAY}` : '') +
+          (session.env.WAYLAND_DISPLAY ? ` wayland=${session.env.WAYLAND_DISPLAY}` : '') +
+          (dropUser && session.user ? ` as=${session.user}` : asRoot ? ' as=root' : '') +
           ')',
       );
 
-      // Root/systemd launches need --no-sandbox; setuid chrome-sandbox often fails in /opt.
       const electronArgs = ['.'];
-      const asRoot = typeof process.getuid === 'function' && process.getuid() === 0;
-      if (process.platform === 'linux' && (asRoot || process.env.SPECTRE_ELECTRON_NO_SANDBOX === '1')) {
+      // Sandbox setuid helper breaks under /opt packages and root→user drops.
+      if (
+        process.platform === 'linux' &&
+        (asRoot || dropUser || process.env.SPECTRE_ELECTRON_NO_SANDBOX === '1')
+      ) {
         electronArgs.unshift('--no-sandbox');
       }
+      // Prefer X11/XWayland for frameless always-on-top (matches Windows overlay behavior).
+      if (process.platform === 'linux' && session.env.DISPLAY) {
+        electronArgs.unshift('--ozone-platform=x11');
+      }
 
-      const child = spawn(electronExec, electronArgs, {
+      const childEnv: NodeJS.ProcessEnv = {
+        ...session.env,
+        SPECTRE_WIDGET_URL: url,
+        SPECTRE_WIDGET_AUTO_DOCK: this.getAutoDock() ? '1' : '0',
+        SPECTRE_WIDGET_PINNED: this.getPinned() ? '1' : '0',
+        SPECTRE_WIDGET_OPACITY: String(opacity),
+        ELECTRON_DISABLE_SANDBOX: '1',
+      };
+      if (session.home) childEnv.HOME = session.home;
+      if (session.user) {
+        childEnv.USER = session.user;
+        childEnv.LOGNAME = session.user;
+      }
+
+      const spawnOpts: Parameters<typeof spawn>[2] = {
         cwd: pipDir,
-        env: {
-          ...guiEnv,
-          SPECTRE_WIDGET_URL: url,
-          SPECTRE_WIDGET_AUTO_DOCK: this.getAutoDock() ? '1' : '0',
-          SPECTRE_WIDGET_PINNED: this.getPinned() ? '1' : '0',
-          SPECTRE_WIDGET_OPACITY: String(opacity),
-          // Avoid Electron setuid sandbox failures under systemd/root.
-          ...(asRoot ? { ELECTRON_DISABLE_SANDBOX: '1' } : {}),
-        },
+        env: childEnv,
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
         detached: false,
-      });
+      };
+      // Drop privileges to the desktop user so X/Wayland auth works (systemd is root).
+      if (dropUser) {
+        spawnOpts.uid = session.uid;
+        spawnOpts.gid = session.gid;
+      }
+
+      const child = spawn(electronExec, electronArgs, spawnOpts);
       this.child = child;
 
       child.stdout?.on('data', (buf) => {
@@ -113,7 +141,18 @@ export class PipShellManager {
         if (this.child === child) this.child = null;
       });
 
-      return { ok: true, detail: 'started' };
+      // If Electron dies immediately, surface a useful failure instead of a silent miss.
+      await new Promise((r) => setTimeout(r, 400));
+      if (!this.running) {
+        return {
+          ok: false,
+          detail:
+            'Electron overlay exited immediately — check journalctl -u spectre.service for pip-shell errors',
+          browserFallback: false,
+        };
+      }
+
+      return { ok: true, detail: dropUser ? `started as ${session.user}` : 'started' };
     } finally {
       this.starting = false;
     }

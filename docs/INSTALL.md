@@ -287,7 +287,7 @@ Soft tilt limits default to **−30° … +35°** (editable in Settings within m
 | Windows: yellow bang in Device Manager | Driver not installed | CH340 / FTDI / CP210x driver from vendor |
 | Linux: `Permission denied` on serial | Not in `dialout` / stale session | `usermod -aG dialout $USER`, log out/in, replug |
 | Linux: service won’t enable | No systemd | Use a systemd distro, or run `spectre.sh` manually |
-| Overlay / “Open Widget” fails on Linux | `spectre.service` is headless (no `DISPLAY`) | SPECTRE opens **http://127.0.0.1:9000/widget.html** in the browser instead. For a real overlay, run from a logged-in desktop session (not only systemd). |
+| Overlay / “Open Widget” fails on Linux | No user logged into the GUI, or Electron cannot reach the seat | Stay logged into the local desktop, then click **Open** again. SPECTRE attaches to your seat’s `DISPLAY` and launches Electron as your user (same always-on-top overlay as Windows). Last resort: http://127.0.0.1:9000/widget.html |
 | SmartScreen blocks Setup | Unsigned / new publisher | Prefer Authenticode ([CODE-SIGNING.md](CODE-SIGNING.md)); until then *More info → Run anyway* |
 | Port list empty in console | Driver/permission | Fix driver/dialout first, then refresh Ports |
 | Browser opens, page never loads / server exits | Bundled Node too old (pre-1.1.5) | Upgrade to **v1.1.6+** (bundled Node 22.23.5) |

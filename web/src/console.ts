@@ -626,7 +626,7 @@ bindActions({
     tx({ type: 'settings.update', patch: patchFromPath(path, value) });
   },
 
-  /* ---- widget (Electron overlay; browser /widget.html is the Linux fallback) ---- */
+  /* ---- widget (Electron always-on-top overlay — same as Windows) ---- */
   'open-widget': () => {
     // Enable + open; UI syncs from settings ack (do not flip Enable optimistically).
     if (!tx({ type: 'widget.open', source: 'console' })) return;
@@ -729,12 +729,13 @@ function openBrowserWidget(): void {
 
 ws.on('error', (m) => {
   const msg = m.message ?? '';
+  // Only auto-open a browser tab when the server explicitly says there is no GUI session.
   const wantBrowser =
-    !!(m as { browserFallback?: boolean }).browserFallback ||
-    /no desktop display|no display|widget\.html|headless/i.test(msg);
-  if (wantBrowser && /widget open failed/i.test(msg)) {
+    !!(m as { browserFallback?: boolean }).browserFallback &&
+    /widget open failed/i.test(msg);
+  if (wantBrowser) {
     openBrowserWidget();
-    toast('DESKTOP OVERLAY UNAVAILABLE — opened browser widget', 'warn');
+    toast('NO DESKTOP SESSION — opened browser widget (log into Linux GUI for overlay)', 'warn');
     return;
   }
   toast(`SERVER: ${msg}`, 'warn');
