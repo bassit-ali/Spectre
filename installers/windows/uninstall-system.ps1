@@ -47,7 +47,8 @@ Get-Process electron -ErrorAction SilentlyContinue | ForEach-Object {
   } catch {}
 }
 
-schtasks /Delete /TN 'SPECTRE' /F 2>$null | Out-Null
+# Task may not exist on older installs — never abort uninstall for that.
+cmd /c "schtasks /Delete /TN SPECTRE /F >nul 2>&1" | Out-Null
 Remove-ItemProperty -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'SPECTRE' -ErrorAction SilentlyContinue
 Remove-Item -Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\SPECTRE' -Recurse -Force -ErrorAction SilentlyContinue
 

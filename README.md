@@ -91,7 +91,7 @@ RS-485 is the default link. Ethernet UDP is optional in **Hardware Link** (same 
 
 ## What you get
 
-- **2D pan pad** and **vertical tilt rail** (−50°…+50°)
+- **2D pan pad** and **vertical tilt rail** (default −30°…+35°, editable in Settings within ±60°)
 - Absolute **GO TO** with encoder landing (0.5° / 1° / 2° band)
 - **Home** settle ±1.5°
 - **3×3 sector presets** (A/B/C × Low / Level / High)

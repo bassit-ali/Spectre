@@ -98,7 +98,7 @@ export function defaultConfig(): AppConfig {
     baudRate: 9600,
     address: 1,
     // Official medium-duty servo worm-gear head: pan 1.2–60°/s, tilt 1.2–30°/s, ±0.2° accuracy.
-    // Soft tilt travel hardcoded to ±50° for this deployment.
+    // Soft tilt defaults −30°…+35° (editable in Settings within mechanical ±60°).
     // Pelco-D speed byte 0–63 maps across that mechanical range (63 ≈ rated max).
     panSpeed: 48,
     tiltSpeed: 32,
@@ -107,7 +107,7 @@ export function defaultConfig(): AppConfig {
     udpPath: 'udp://192.168.8.200:6666',
     preferUdp: false,
     httpPort: DEFAULT_HTTP_PORT,
-    limits: { enabled: true, panMin: -180, panMax: 180, tiltMin: -50, tiltMax: 50 },
+    limits: { enabled: true, panMin: -180, panMax: 180, tiltMin: -30, tiltMax: 35 },
     approach: { speedFast: 42, speedSlow: 5, rampDistance: 18, deadband: 1, pollMs: 80 },
     presets: Array.from({ length: 9 }, (_, i) => ({
       id: i + 1,
@@ -151,6 +151,34 @@ function num(v: unknown, fallback: number): number {
   return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 }
 
+/** Mechanical tilt envelope for soft-limit edits (head travel ±60°). */
+export const TILT_MECH_MIN = -60;
+export const TILT_MECH_MAX = 60;
+export const TILT_SOFT_DEFAULT_MIN = -30;
+export const TILT_SOFT_DEFAULT_MAX = 35;
+
+/** Clamp soft tilt limits into ±60° and keep min < max. */
+export function clampTiltSoftLimits(
+  tiltMin: number,
+  tiltMax: number,
+): { tiltMin: number; tiltMax: number } {
+  let lo = Math.min(TILT_MECH_MAX, Math.max(TILT_MECH_MIN, tiltMin));
+  let hi = Math.min(TILT_MECH_MAX, Math.max(TILT_MECH_MIN, tiltMax));
+  if (!(lo < hi)) {
+    // Prefer keeping the edited edge; fall back to defaults if collapsed.
+    if (hi <= TILT_MECH_MIN) {
+      lo = TILT_MECH_MIN;
+      hi = Math.min(TILT_MECH_MAX, TILT_MECH_MIN + 1);
+    } else if (lo >= TILT_MECH_MAX) {
+      hi = TILT_MECH_MAX;
+      lo = Math.max(TILT_MECH_MIN, TILT_MECH_MAX - 1);
+    } else {
+      hi = Math.min(TILT_MECH_MAX, lo + 1);
+    }
+  }
+  return { tiltMin: lo, tiltMax: hi };
+}
+
 /** Allowed goto landing resolutions (°). Inside band = good, no micro-fight. */
 export const LANDING_RESOLUTIONS = [0.5, 1, 2] as const;
 export type LandingResolution = (typeof LANDING_RESOLUTIONS)[number];
@@ -192,9 +220,15 @@ export function normalizeConfig(raw: unknown): AppConfig {
       // Pan travel lock is fixed at ±180 by MotionController regardless.
       panMin: -180,
       panMax: 180,
-      // Tilt soft-limits hardcoded ±50° (ignore saved / UI overrides).
-      tiltMin: -50,
-      tiltMax: 50,
+      // Migrate prior forced ±50 deployments to the new default soft band.
+      tiltMin:
+        lim.tiltMin === -50 && lim.tiltMax === 50
+          ? d.limits.tiltMin
+          : num(lim.tiltMin, d.limits.tiltMin),
+      tiltMax:
+        lim.tiltMin === -50 && lim.tiltMax === 50
+          ? d.limits.tiltMax
+          : num(lim.tiltMax, d.limits.tiltMax),
     },
     approach: {
       speedFast: num(app.speedFast, d.approach.speedFast),
@@ -209,8 +243,9 @@ export function normalizeConfig(raw: unknown): AppConfig {
     widgetVisible: typeof r.widgetVisible === 'boolean' ? r.widgetVisible : d.widgetVisible,
     widgetAutoDock: typeof r.widgetAutoDock === 'boolean' ? r.widgetAutoDock : d.widgetAutoDock,
   };
-  cfg.limits.tiltMin = -50;
-  cfg.limits.tiltMax = 50;
+  const tiltSoft = clampTiltSoftLimits(cfg.limits.tiltMin, cfg.limits.tiltMax);
+  cfg.limits.tiltMin = tiltSoft.tiltMin;
+  cfg.limits.tiltMax = tiltSoft.tiltMax;
   // Landing resolution is operator-selected: 0.5° / 1° / 2° (speedy accept band).
   // Home uses a separate hard-coded ±1.5° settle and ignores this value.
   cfg.approach.deadband = snapLandingResolution(cfg.approach.deadband);

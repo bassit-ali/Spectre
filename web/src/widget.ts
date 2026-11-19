@@ -519,10 +519,33 @@ ws.on('status', (m) =>
   }),
 );
 ws.on('presets', (m) => applyPresets(m.presets, m.active));
+function syncTiltUiBounds(): void {
+  const tiltSlider = byId<HTMLInputElement>('widget-tilt-slider');
+  if (tiltSlider) {
+    tiltSlider.min = String(TILT_MIN);
+    tiltSlider.max = String(TILT_MAX);
+    const cur = parseFloat(tiltSlider.value);
+    if (Number.isFinite(cur)) tiltSlider.value = String(clamp(cur, TILT_MIN, TILT_MAX));
+  }
+  const gotoTilt = byId<HTMLInputElement>('widget-goto-tilt');
+  if (gotoTilt) {
+    gotoTilt.min = String(TILT_MIN);
+    gotoTilt.max = String(TILT_MAX);
+  }
+  const fmt = (v: number) => `${v > 0 ? '+' : ''}${v}°`;
+  const capMax = byId('widget-tilt-rail-cap-max');
+  const capMin = byId('widget-tilt-rail-cap-min');
+  if (capMax) capMax.textContent = fmt(TILT_MAX);
+  if (capMin) capMin.textContent = fmt(TILT_MIN);
+  const band = byId('widget-tilt-band');
+  if (band) band.textContent = `${fmt(TILT_MIN)}…${fmt(TILT_MAX)}`;
+}
+
 ws.on('settings', (m) => {
   const tMin = m.settings.limits?.tiltMin;
   const tMax = m.settings.limits?.tiltMax;
   if (typeof tMin === 'number' && typeof tMax === 'number') setTiltLimits(tMin, tMax);
+  syncTiltUiBounds();
   if (m.settings.widgetPinned != null) setPinned(m.settings.widgetPinned);
   if (m.settings.widgetAutoDock != null) applyAutoDock(!!m.settings.widgetAutoDock);
   if (typeof m.settings.widgetOpacity === 'number') applyOpacity(m.settings.widgetOpacity, false);

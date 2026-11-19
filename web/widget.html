@@ -89,7 +89,7 @@
       <div class="flex flex-col p-space-xs bg-surface-container-low rounded">
         <div class="flex justify-between items-center text-outline font-label-code text-label-code">
           <span>TILT</span>
-          <span class="text-secondary-fixed-dim">±50°</span>
+          <span class="text-secondary-fixed-dim" id="widget-tilt-band">−30°…+35°</span>
         </div>
         <div class="flex items-baseline justify-between mt-0.5">
           <span class="font-label-telemetry-lg text-label-telemetry-lg text-secondary tracking-tight" id="widget-tilt-val" data-bind="tilt">—°</span>
@@ -159,14 +159,14 @@
           </div>
           <!-- Tilt rail height-matched to the 2D disc; live ° overlays track (does not shrink thumb travel) -->
           <div class="tilt-rail tilt-rail--pad">
-            <span class="tilt-rail-cap">+50°</span>
+            <span class="tilt-rail-cap" id="widget-tilt-rail-cap-max">+35°</span>
             <div class="tilt-track">
               <div class="tilt-level-bar" title="0° LEVEL"></div>
               <span class="tilt-level-tag">0°</span>
-              <input class="tilt-slider-v" id="widget-tilt-slider" data-action="tilt-slider" max="50" min="-50" step="0.25" type="range" value="0" title="Tilt slider" aria-label="Tilt degrees" />
+              <input class="tilt-slider-v" id="widget-tilt-slider" data-action="tilt-slider" max="35" min="-30" step="0.25" type="range" value="0" title="Tilt slider" aria-label="Tilt degrees" />
               <span class="tilt-live-deg" id="widget-tilt-slider-label">—°</span>
             </div>
-            <span class="tilt-rail-cap">−50°</span>
+            <span class="tilt-rail-cap" id="widget-tilt-rail-cap-min">−30°</span>
           </div>
         </div>
         <div class="w-full flex items-center justify-center gap-2 mt-0.5">
@@ -201,7 +201,7 @@
           </div>
           <div class="grid grid-cols-2 gap-1 font-label-code text-[10px]">
             <input id="widget-goto-pan" class="min-w-0 bg-surface-container text-primary text-center px-0.5 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-primary-container" placeholder="PAN" type="number" min="-180" max="360" step="0.1" />
-            <input id="widget-goto-tilt" class="min-w-0 bg-surface-container text-secondary text-center px-0.5 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-secondary-container" placeholder="TILT" type="number" min="-50" max="50" step="0.1" />
+            <input id="widget-goto-tilt" class="min-w-0 bg-surface-container text-secondary text-center px-0.5 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-secondary-container" placeholder="TILT" type="number" min="-30" max="35" step="0.1" />
           </div>
           <button type="button" id="widget-goto-btn" data-action="goto" class="w-full py-0.5 mt-0.5 bg-surface-container hover:bg-surface-container-high text-primary-fixed uppercase font-label-telemetry-sm text-[9px] rounded transition-colors">GO TO</button>
         </div>

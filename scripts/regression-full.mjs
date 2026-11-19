@@ -233,7 +233,13 @@ async function sectionHttp() {
   assert('widget overflow-visible badges', /overflow-visible/.test(widget.text));
   assert('widget no fine pan bars', !widget.text.includes('id="widget-pan-minus"') && !widget.text.includes('id="widget-pan-plus"'));
   assert('widget pin in header', widget.text.includes('id="widget-pin-btn"'));
-  assert('widget tilt ±50', /±50°/.test(widget.text) && /min="-50"/.test(widget.text) && /max="50"/.test(widget.text));
+  assert(
+    'widget tilt soft defaults −30…+35',
+    /−30°/.test(widget.text) &&
+      /\+35°/.test(widget.text) &&
+      /min="-30"/.test(widget.text) &&
+      /max="35"/.test(widget.text),
+  );
   assert('widget no credit footer', !/26 SIG|R&D WING/i.test(widget.text));
   assert('widget opacity chrome', widget.text.includes('id="widget-opacity-slider"') && widget.text.includes('id="widget-opacity-btn"'));
   assert('widget offline banner present', widget.text.includes('id="widget-offline-banner"') && /No device connected/i.test(widget.text));
@@ -266,7 +272,11 @@ async function sectionWsApi() {
     const settings = await send('settings.get');
     assert('settings.get', settings != null && (settings.approach || settings.limits || settings.motion));
     const limits = settings.limits || settings.motion?.limits;
-    assert('tilt limits ±50', limits?.tiltMin === -50 && limits?.tiltMax === 50, JSON.stringify(limits));
+    assert(
+      'tilt soft defaults −30…+35',
+      limits?.tiltMin === -30 && limits?.tiltMax === 35,
+      JSON.stringify(limits),
+    );
 
     const ports = await send('serial.list');
     // Prefer SPECTRE_DEVICE (COM / udp://…). Do not use SPECTRE_PORT — that is the HTTP listen port.

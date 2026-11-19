@@ -120,7 +120,19 @@ async function sectionConsoleCopy() {
   assert('console jog left/right pan', hasJog(text, 'left') && hasJog(text, 'right'));
   assert('console land 0.5/1/2 chips', hasId(text, 'land-res-05') && hasId(text, 'land-res-1') && hasId(text, 'land-res-2'));
   assert('console no fine pan slider', !hasId(text, 'pan-slider'));
-  assert('console tilt ±50', hasText(text, '±50°|−50°|\\+50°') || (hasText(text, 'min="-50"') && hasText(text, 'max="50"')));
+  assert(
+    'console tilt soft defaults −30…+35',
+    (hasText(text, '−30°') && hasText(text, '\\+35°')) ||
+      (hasText(text, 'min="-30"') && hasText(text, 'max="35"')),
+  );
+  assert(
+    'console tilt limit sliders editable',
+    hasId(text, 'limit-tilt-min') &&
+      hasId(text, 'limit-tilt-max') &&
+      /id="limit-tilt-min"[^>]*type="range"/.test(text) &&
+      /id="limit-tilt-max"[^>]*type="range"/.test(text) &&
+      !/id="limit-tilt-min"[^>]*readonly/.test(text),
+  );
   assert('console ethernet udp host field', hasId(text, 'udp-host-input'));
   assert('console ethernet udp port field', hasId(text, 'udp-port-input'));
   assert('console prefer udp checkbox', hasId(text, 'prefer-udp-check'));
@@ -176,7 +188,13 @@ async function sectionWidgetCopy() {
   assert('widget preset Sector names', hasText(text, 'Sector A Low') && hasText(text, 'Sector C High'));
   assert('widget no fine pan bars', !hasId(text, 'widget-pan-minus') && !hasId(text, 'widget-pan-plus'));
   assert('widget pin in header', hasId(text, 'widget-pin-btn'));
-  assert('widget tilt ±50', hasText(text, '±50°') && /min="-50"/.test(text) && /max="50"/.test(text));
+  assert(
+    'widget tilt soft defaults −30…+35',
+    hasText(text, '−30°') &&
+      hasText(text, '\\+35°') &&
+      /min="-30"/.test(text) &&
+      /max="35"/.test(text),
+  );
   assert('widget opacity chrome', hasId(text, 'widget-opacity-slider') && hasId(text, 'widget-opacity-btn'));
   assert('widget no credit footer', !/26 SIG|R&D WING/i.test(text));
   assert('widget offline banner', hasId(text, 'widget-offline-banner') && hasText(text, 'No device connected'));

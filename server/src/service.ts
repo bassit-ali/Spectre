@@ -782,11 +782,7 @@ export class SpectreService extends EventEmitter {
     if (typeof patch.panSpeed === 'number') motionPatch.panSpeed = patch.panSpeed;
     if (typeof patch.tiltSpeed === 'number') motionPatch.tiltSpeed = patch.tiltSpeed;
     if (patch.limits && typeof patch.limits === 'object') {
-      const lim = { ...(patch.limits as ControllerSettings['limits']) };
-      // Tilt soft-limits are hardcoded ±50° — ignore client overrides.
-      lim.tiltMin = -50;
-      lim.tiltMax = 50;
-      motionPatch.limits = lim;
+      motionPatch.limits = { ...(patch.limits as ControllerSettings['limits']) };
     }
     if (patch.approach && typeof patch.approach === 'object') {
       const a = { ...(patch.approach as ControllerSettings['approach']) };

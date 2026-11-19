@@ -7,7 +7,7 @@ export type MoveFlags = { left?: boolean; right?: boolean; up?: boolean; down?: 
 
 export type PoseMsg = {
   pan: number | null; // degrees 0-360
-  tilt: number | null; // degrees, typically -50..+90
+  tilt: number | null; // degrees, soft limits default -30..+35 (editable within ±60)
   panRaw: number | null; // raw 16-bit word from Pelco-D query reply (0x59 / 0x5B responses)
   tiltRaw: number | null;
   updatedAt: number | null;

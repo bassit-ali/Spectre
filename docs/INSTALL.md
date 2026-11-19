@@ -275,7 +275,7 @@ sudo rm -rf /opt/spectre
 8. Optional: **RUN SELF-TEST** to verify serial + encoder replies.
 9. Prefer **HALT** before unplugging serial or powering the head down mid-move.
 
-Soft tilt limits are **−50° … +50°**. Home settles within **±1.5°**.
+Soft tilt limits default to **−30° … +35°** (editable in Settings within mechanical **±60°**). Home settles within **±1.5°**.
 
 ---
 

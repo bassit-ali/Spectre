@@ -107,8 +107,9 @@ export class MotionController extends EventEmitter {
         enabled: true,
         panMin: PAN_TRAVEL_MIN,
         panMax: PAN_TRAVEL_MAX,
-        tiltMin: -50,
-        tiltMax: 50,
+        // Soft defaults −30°…+35°; editable within mechanical ±60°.
+        tiltMin: -30,
+        tiltMax: 35,
       },
       approach: {
         speedFast: 42,
@@ -169,9 +170,20 @@ export class MotionController extends EventEmitter {
     // Pan revolution lock stays hard-coded internally.
     this.settings.limits.panMin = PAN_TRAVEL_MIN;
     this.settings.limits.panMax = PAN_TRAVEL_MAX;
-    // Tilt soft-limits hardcoded ±50° for this deployment.
-    this.settings.limits.tiltMin = -50;
-    this.settings.limits.tiltMax = 50;
+    // Soft tilt limits: clamp to mechanical ±60° and keep min < max.
+    const tLo = Number(this.settings.limits.tiltMin);
+    const tHi = Number(this.settings.limits.tiltMax);
+    let tiltMin = Number.isFinite(tLo) ? Math.min(60, Math.max(-60, tLo)) : -30;
+    let tiltMax = Number.isFinite(tHi) ? Math.min(60, Math.max(-60, tHi)) : 35;
+    if (!(tiltMin < tiltMax)) {
+      tiltMax = Math.min(60, tiltMin + 1);
+      if (!(tiltMin < tiltMax)) {
+        tiltMin = -30;
+        tiltMax = 35;
+      }
+    }
+    this.settings.limits.tiltMin = tiltMin;
+    this.settings.limits.tiltMax = tiltMax;
     this.emit('settings', this.getSettings());
     return this.getSettings();
   }

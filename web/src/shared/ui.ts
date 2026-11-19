@@ -69,16 +69,30 @@ export function cardinal(az: number | null | undefined): string {
 }
 
 /**
- * Live soft limits — updated from server settings.
+ * Live soft limits — updated from server settings via setTiltLimits().
  * Table convention: 0° = level (middle), + = tilt up, − = tilt down.
- * Hardcoded soft limits for this head: ±50°.
+ * Defaults −30°…+35°; editable in Settings within mechanical ±60°.
  */
-export const TILT_MIN = -50;
-export const TILT_MAX = 50;
+export const TILT_MECH_MIN = -60;
+export const TILT_MECH_MAX = 60;
+export let TILT_MIN = -30;
+export let TILT_MAX = 35;
 
-/** Kept for call sites — tilt limits are hardcoded ±50 and cannot be changed. */
-export function setTiltLimits(_min?: number, _max?: number): void {
-  /* fixed ±50 */
+/** Apply soft tilt limits from server settings (clamped to ±60°, min < max). */
+export function setTiltLimits(min?: number, max?: number): void {
+  let lo = typeof min === 'number' && Number.isFinite(min) ? min : TILT_MIN;
+  let hi = typeof max === 'number' && Number.isFinite(max) ? max : TILT_MAX;
+  lo = Math.min(TILT_MECH_MAX, Math.max(TILT_MECH_MIN, lo));
+  hi = Math.min(TILT_MECH_MAX, Math.max(TILT_MECH_MIN, hi));
+  if (!(lo < hi)) {
+    hi = Math.min(TILT_MECH_MAX, lo + 1);
+    if (!(lo < hi)) {
+      lo = -30;
+      hi = 35;
+    }
+  }
+  TILT_MIN = lo;
+  TILT_MAX = hi;
 }
 
 export const clamp = (v: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, v));

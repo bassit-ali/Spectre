@@ -1,4 +1,4 @@
-﻿# SPECTRE v1.1.6
+﻿# SPECTRE v1.1.7
 
 ## Artifacts
 
@@ -7,25 +7,22 @@ Download from **[GitHub Releases (latest)](https://github.com/bassit-ali/Spectre
 | File | Platform |
 |------|----------|
 | `SPECTRE-Setup.exe` | Windows x64 installer (recommended) |
-| `SPECTRE-windows-x64-v1.1.6.zip` | Windows portable + `install.ps1` |
+| `SPECTRE-windows-x64-v1.1.7.zip` | Windows portable + `install.ps1` |
 | `spectre-linux-x64.tar.gz` | Linux x86_64 |
 | `spectre-linux-arm64.tar.gz` | Linux ARM64 / Pi |
 | `SPECTRE-Install-Guide.pdf` | Install guide (same content as [INSTALL.md](INSTALL.md)) |
 
-## Changes (v1.1.6)
+## Changes (v1.1.7)
 
-- Refreshed **install guide** (PDF/HTML/MD) and README install steps for the current build
-- Repo hygiene: local pack staging / release binaries stay gitignored — **git + GitHub Releases** only
-- Same runtime as 1.1.5: bundled **Node.js 22.23.5**, HALT/sphere fix, degree nudges, Settings jump
+- Soft tilt defaults **−30° … +35°** (was forced ±50°)
+- Settings **tilt min/max sliders** — editable within mechanical **±60°**; aim rail / goto follow live limits
+- Prior installs that still had forced ±50° soft limits migrate to the new defaults on load
 
-## Inherited from v1.1.5
+## Inherited from v1.1.6
 
-- Bundled **Node.js 22.23.5** (fixes `ERR_REQUIRE_ESM` on Node 20.18)
-- Pack-time `runtime/NODE_VERSION.txt` + payload smoke checks
-- Installer waits for `/health` before opening the browser; `spectre.cmd` pauses on crash
-- **HALT** cancels in-flight sphere `goto` and resolves hung approach loops
-- **1° / 5° / 10°** closed-loop degree nudges; sphere aim spot shows a live pan degree tag
-- Header **Settings** jumps to Link · Drive · Widget
+- Refreshed install guide (PDF/HTML/MD) and README install steps
+- Repo hygiene: pack staging / release binaries stay gitignored — git + GitHub Releases only
+- Bundled **Node.js 22.23.5**, HALT/sphere fix, degree nudges, Settings jump
 
 ## Shipped in the archive
 
@@ -54,9 +51,9 @@ Step-by-step: [INSTALL.md — OS / hardware setup](INSTALL.md#os--hardware-setup
 npm run pack:win
 npm run pack:linux
 # or:
-.\installers\windows\build.ps1 -Version 1.1.6
-.\installers\linux\package.ps1 -Version 1.1.6
-.\installers\common\build-install-guide.ps1 -Version 1.1.6
+.\installers\windows\build.ps1 -Version 1.1.7
+.\installers\linux\package.ps1 -Version 1.1.7
+.\installers\common\build-install-guide.ps1 -Version 1.1.7
 ```
 
 Artifacts land in `release/` (gitignored). Attach them to the GitHub Release for this tag.

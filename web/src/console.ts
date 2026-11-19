@@ -245,6 +245,33 @@ function getPath(obj: Record<string, unknown>, path: string): unknown {
   return path.split('.').reduce<unknown>((o, k) => (o && typeof o === 'object' ? (o as Record<string, unknown>)[k] : undefined), obj);
 }
 
+function fmtSoftTilt(v: number): string {
+  return `${v > 0 ? '+' : ''}${v}°`;
+}
+
+function syncTiltUiBounds(): void {
+  const tiltSlider = byId<HTMLInputElement>('tilt-slider');
+  if (tiltSlider) {
+    tiltSlider.min = String(TILT_MIN);
+    tiltSlider.max = String(TILT_MAX);
+    const cur = parseFloat(tiltSlider.value);
+    if (Number.isFinite(cur)) tiltSlider.value = String(clamp(cur, TILT_MIN, TILT_MAX));
+  }
+  const gotoTilt = byId<HTMLInputElement>('goto-tilt-input');
+  if (gotoTilt) {
+    gotoTilt.min = String(TILT_MIN);
+    gotoTilt.max = String(TILT_MAX);
+  }
+  const capMax = byId('tilt-rail-cap-max');
+  const capMin = byId('tilt-rail-cap-min');
+  if (capMax) capMax.textContent = `${fmtSoftTilt(TILT_MAX)} UP`;
+  if (capMin) capMin.textContent = `${fmtSoftTilt(TILT_MIN)} DOWN`;
+  const gotoLabel = byId('goto-tilt-label');
+  if (gotoLabel) {
+    gotoLabel.textContent = `TARGET TILT (${fmtSoftTilt(TILT_MIN)} DOWN … 0° LEVEL … ${fmtSoftTilt(TILT_MAX)} UP)`;
+  }
+}
+
 function refreshSettingLabels(): void {
   const poll = byId<HTMLInputElement>('poll-slider');
   const pd = byId('poll-display');
@@ -256,6 +283,10 @@ function refreshSettingLabels(): void {
   const ts = byId<HTMLInputElement>('tilt-speed-slider');
   if (ps) bindText2('pan-speed-val', `${ps.value} / 63`);
   if (ts) bindText2('tilt-speed-val', `${ts.value} / 63`);
+  const tMin = byId<HTMLInputElement>('limit-tilt-min');
+  const tMax = byId<HTMLInputElement>('limit-tilt-max');
+  if (tMin) bindText2('limit-tilt-min-val', fmtSoftTilt(Number(tMin.value)));
+  if (tMax) bindText2('limit-tilt-max-val', fmtSoftTilt(Number(tMax.value)));
 }
 
 function bindText2(id: string, text: string): void {
@@ -283,11 +314,7 @@ function applySettings(s: Settings): void {
   const tMin = s.limits?.tiltMin;
   const tMax = s.limits?.tiltMax;
   if (typeof tMin === 'number' && typeof tMax === 'number') setTiltLimits(tMin, tMax);
-  const tiltSlider = byId<HTMLInputElement>('tilt-slider');
-  if (tiltSlider) {
-    tiltSlider.min = String(TILT_MIN);
-    tiltSlider.max = String(TILT_MAX);
-  }
+  syncTiltUiBounds();
 
   qsa<HTMLInputElement>('[data-setting]').forEach((el) => {
     const v = getPath(s as Record<string, unknown>, el.dataset.setting ?? '');
@@ -557,12 +584,46 @@ bindActions({
 
   /* ---- generic settings (data-setting="a.b") ---- */
   setting: (el, ev) => {
+    const input = el as HTMLInputElement;
+    const path = input.dataset.setting ?? '';
+    // Keep soft-limit sliders ordered while dragging; patch on change.
+    if (path === 'limits.tiltMin' || path === 'limits.tiltMax') {
+      const minEl = byId<HTMLInputElement>('limit-tilt-min');
+      const maxEl = byId<HTMLInputElement>('limit-tilt-max');
+      if (minEl && maxEl) {
+        let lo = parseFloat(minEl.value);
+        let hi = parseFloat(maxEl.value);
+        if (Number.isFinite(lo) && Number.isFinite(hi) && !(lo < hi)) {
+          if (path === 'limits.tiltMin') {
+            lo = Math.min(hi - 0.5, lo);
+            minEl.value = String(lo);
+          } else {
+            hi = Math.max(lo + 0.5, hi);
+            maxEl.value = String(hi);
+          }
+        }
+        if (ev.type === 'input' || ev.type === 'change') {
+          setTiltLimits(parseFloat(minEl.value), parseFloat(maxEl.value));
+          syncTiltUiBounds();
+        }
+      }
+    }
     refreshSettingLabels();
     if (ev.type !== 'change') return;
-    const input = el as HTMLInputElement;
     const value = readSettingValue(input);
     if (value == null) return;
-    tx({ type: 'settings.update', patch: patchFromPath(input.dataset.setting ?? '', value) });
+    if (path === 'limits.tiltMin' || path === 'limits.tiltMax') {
+      const minEl = byId<HTMLInputElement>('limit-tilt-min');
+      const maxEl = byId<HTMLInputElement>('limit-tilt-max');
+      const lo = parseFloat(minEl?.value ?? String(TILT_MIN));
+      const hi = parseFloat(maxEl?.value ?? String(TILT_MAX));
+      tx({
+        type: 'settings.update',
+        patch: { limits: { tiltMin: lo, tiltMax: hi } },
+      });
+      return;
+    }
+    tx({ type: 'settings.update', patch: patchFromPath(path, value) });
   },
 
   /* ---- widget (real Windows always-on-top overlay via pip-shell) ---- */
