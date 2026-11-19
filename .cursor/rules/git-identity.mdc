@@ -1,11 +1,15 @@
 ---
-description: Commit only as Bassit Ali; never attribute commits to Cursor
+description: Commit and upload only as Bassit Ali; never attribute to Cursor
 alwaysApply: true
 ---
 
-# Git identity
+# Git identity (mandatory)
 
-- Always author and committer: **Bassit Ali** `<markhor.0026@gmail.com>`
-- Never add `Co-authored-by: Cursor` or any Cursor/`cursoragent` trailer
-- Never commit as Cursor, cursoragent, or any AI identity
-- Prefer `git -c user.name="Bassit Ali" -c user.email="markhor.0026@gmail.com"` when making commits if identity is unset
+- **Author and committer must always be:** Bassit Ali `<markhor.0026@gmail.com>`
+- **Never** add `Co-authored-by: Cursor`, `cursoragent@cursor.com`, or any Cursor/AI trailer
+- **Never** commit, tag, or publish releases as Cursor, cursoragent, or any AI identity
+- When committing, always use:
+  `git -c user.name="Bassit Ali" -c user.email="markhor.0026@gmail.com"`
+- GitHub Releases / `gh` uploads must stay under the **bassit-ali** account only
+- If Cursor appends a co-author trailer, remove it before the commit is created
+- Repo hooks in `.githooks/` strip/block Cursor trailers — keep `core.hooksPath=.githooks`

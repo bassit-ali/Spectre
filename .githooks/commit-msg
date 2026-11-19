@@ -1,0 +1,12 @@
+#!/bin/sh
+# Strip Cursor/AI co-author trailers so only Bassit Ali is attributed.
+MSG_FILE="$1"
+TMP="${MSG_FILE}.tmp"
+sed -e '/^Co-authored-by: Cursor <cursoragent@cursor.com>$/d' \
+    -e '/^Co-Authored-By: Cursor <cursoragent@cursor.com>$/d' \
+    -e '/^Co-authored-by:.*cursoragent@cursor\.com$/d' \
+    -e '/^Co-Authored-By:.*cursoragent@cursor\.com$/d' \
+    -e '/^Co-authored-by:.*@cursor\.com$/d' \
+    -e '/^Co-Authored-By:.*@cursor\.com$/d' \
+    "$MSG_FILE" > "$TMP" && mv "$TMP" "$MSG_FILE"
+exit 0

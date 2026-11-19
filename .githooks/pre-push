@@ -1,0 +1,9 @@
+#!/bin/sh
+# Block pushes that still carry Cursor co-author trailers.
+if git --no-replace-objects log origin/main..HEAD --grep='cursoragent@cursor.com' --oneline 2>/dev/null | grep -q .; then
+  echo "ERROR: commits about to push still contain Cursor co-author trailers." >&2
+  echo "Strip them (or amend) so authorship is Bassit Ali only, then retry." >&2
+  git --no-replace-objects log origin/main..HEAD --grep='cursoragent@cursor.com' --oneline >&2
+  exit 1
+fi
+exit 0
