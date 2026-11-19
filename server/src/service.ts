@@ -171,10 +171,10 @@ export class SpectreService extends EventEmitter {
   }
 
   /** Desktop overlay opens regardless of RS-485 link state. */
-  async openDesktopWidget(): Promise<{ ok: boolean; detail: string }> {
+  async openDesktopWidget(): Promise<{ ok: boolean; detail: string; browserFallback?: boolean }> {
     if (!this.pipShell) {
       this.out('settings', this.settingsView());
-      return { ok: false, detail: 'pip-shell not configured' };
+      return { ok: false, detail: 'pip-shell not configured', browserFallback: true };
     }
     // Serial may be down — still launch so the UI can show "no device connected".
     const result = await this.pipShell.open();
@@ -186,7 +186,10 @@ export class SpectreService extends EventEmitter {
     }
     this.out('settings', this.settingsView());
     if (!result.ok) {
-      this.out('error', { message: `Widget open failed: ${result.detail}` });
+      this.out('error', {
+        message: `Widget open failed: ${result.detail}`,
+        browserFallback: !!result.browserFallback,
+      });
     }
     return result;
   }

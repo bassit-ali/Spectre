@@ -143,7 +143,12 @@ function normalizeIn(raw: WireIn): WireIn {
     return { type: 'log', payload: p };
   }
   if (t === 'error') {
-    return { type: 'error', message: p?.message ?? String(p ?? 'error'), ref: p?.ref };
+    return {
+      type: 'error',
+      message: p?.message ?? String(p ?? 'error'),
+      ref: p?.ref,
+      browserFallback: !!p?.browserFallback,
+    };
   }
   return raw;
 }

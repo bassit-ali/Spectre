@@ -626,7 +626,7 @@ bindActions({
     tx({ type: 'settings.update', patch: patchFromPath(path, value) });
   },
 
-  /* ---- widget (real Windows always-on-top overlay via pip-shell) ---- */
+  /* ---- widget (Electron overlay; browser /widget.html is the Linux fallback) ---- */
   'open-widget': () => {
     // Enable + open; UI syncs from settings ack (do not flip Enable optimistically).
     if (!tx({ type: 'widget.open', source: 'console' })) return;
@@ -722,7 +722,23 @@ ws.on('ports', (m) => applyPorts(m.ports));
 ws.on('presets', (m) => applyPresets(m.presets, m.active));
 ws.on('settings', (m) => applySettings(m.settings));
 ws.on('selftest', (m) => applySelfTest(m.ok, m.items));
-ws.on('error', (m) => toast(`SERVER: ${m.message}`, 'warn'));
+function openBrowserWidget(): void {
+  const url = `${window.location.origin}/widget.html`;
+  window.open(url, 'spectre-widget', 'noopener,noreferrer');
+}
+
+ws.on('error', (m) => {
+  const msg = m.message ?? '';
+  const wantBrowser =
+    !!(m as { browserFallback?: boolean }).browserFallback ||
+    /no desktop display|no display|widget\.html|headless/i.test(msg);
+  if (wantBrowser && /widget open failed/i.test(msg)) {
+    openBrowserWidget();
+    toast('DESKTOP OVERLAY UNAVAILABLE — opened browser widget', 'warn');
+    return;
+  }
+  toast(`SERVER: ${msg}`, 'warn');
+});
 
 ws.onState((s) => {
   renderWsState(s, ws.latencyMs);

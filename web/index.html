@@ -631,9 +631,10 @@
         <div id="sec-widget" class="bg-surface-container p-space-sm rounded-lg shadow-inner">
           <div class="flex items-center justify-between mb-space-xs">
             <span class="font-headline-sm text-headline-sm text-secondary uppercase">Floating Widget</span>
-            <button type="button" id="open-widget-btn" data-action="open-widget" class="flex items-center gap-1 bg-surface-container-lowest hover:bg-surface-container-high text-secondary font-label-code text-label-code uppercase font-bold px-2 py-0.5 rounded">
+            <button type="button" id="open-widget-btn" data-action="open-widget" class="flex items-center gap-1 bg-surface-container-lowest hover:bg-surface-container-high text-secondary font-label-code text-label-code uppercase font-bold px-2 py-0.5 rounded" title="Desktop overlay (Electron). On headless Linux this opens /widget.html in the browser.">
               <span class="material-symbols-outlined icon-xs">open_in_new</span>Open
             </button>
+            <a class="flex items-center gap-1 bg-surface-container-lowest hover:bg-surface-container-high text-on-surface-variant font-label-code text-label-code uppercase font-bold px-2 py-0.5 rounded" href="/widget.html" target="spectre-widget" rel="noopener" title="Always works — browser widget page">Browser</a>
           </div>
           <div class="flex flex-col gap-space-sm font-label-code text-label-code">
             <div class="flex items-center justify-between gap-2 bg-surface-container-lowest p-2 rounded" id="widget-visible-row">

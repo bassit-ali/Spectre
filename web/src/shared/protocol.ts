@@ -80,6 +80,6 @@ export type ServerMsg =
   | { type: 'presets'; presets: PresetInfo[]; active?: number | null }
   | { type: 'settings'; settings: Settings }
   | { type: 'selftest'; ok: boolean; items: SelfTestItem[] }
-  | { type: 'error'; message: string; ref?: string };
+  | { type: 'error'; message: string; ref?: string; browserFallback?: boolean };
 
 export type AnyMsg = ClientMsg | ServerMsg;

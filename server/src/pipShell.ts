@@ -1,10 +1,11 @@
 import { ChildProcess, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import { linuxGuiEnv, linuxHasDisplay } from './linuxDisplay';
 
 /**
  * Launch / stop the always-on-top Electron pip-shell that hosts widget.html
- * as a real Windows desktop overlay (not a browser popup).
+ * as a real desktop overlay (not a browser popup).
  */
 export class PipShellManager {
   private child: ChildProcess | null = null;
@@ -23,19 +24,22 @@ export class PipShellManager {
     return !!this.child && this.child.exitCode == null && !this.child.killed;
   }
 
-  async open(): Promise<{ ok: boolean; detail: string }> {
+  async open(): Promise<{ ok: boolean; detail: string; browserFallback?: boolean }> {
     if (this.running) {
       this.log('info', 'pip-shell already running');
       return { ok: true, detail: 'already running' };
     }
     if (this.starting) return { ok: true, detail: 'starting' };
-    // Headless Linux/systemd has no desktop session — browser widget still works.
-    if (
-      process.platform === 'linux' &&
-      !process.env.DISPLAY &&
-      !process.env.WAYLAND_DISPLAY
-    ) {
-      return { ok: false, detail: 'no display — open the widget page on the SPECTRE listen port' };
+
+    const guiEnv = process.platform === 'linux' ? linuxGuiEnv(process.env) : { ...process.env };
+    // Headless Linux/systemd with no graphical session — browser widget still works.
+    if (process.platform === 'linux' && !linuxHasDisplay(guiEnv)) {
+      return {
+        ok: false,
+        detail:
+          'no desktop display (systemd is headless) — open http://127.0.0.1:9000/widget.html in the browser',
+        browserFallback: true,
+      };
     }
     this.starting = true;
     try {
@@ -62,16 +66,29 @@ export class PipShellManager {
       const opacity = Math.max(0.4, Math.min(1, Number(this.getOpacity()) || 0.95));
       this.log(
         'info',
-        `starting pip-shell (auto-dock=${this.getAutoDock() ? 'on' : 'off'} pin=${this.getPinned() ? 'on' : 'off'} opacity=${opacity})`,
+        `starting pip-shell (auto-dock=${this.getAutoDock() ? 'on' : 'off'} pin=${this.getPinned() ? 'on' : 'off'} opacity=${opacity}` +
+          (guiEnv.DISPLAY ? ` display=${guiEnv.DISPLAY}` : '') +
+          (guiEnv.WAYLAND_DISPLAY ? ` wayland=${guiEnv.WAYLAND_DISPLAY}` : '') +
+          ')',
       );
-      const child = spawn(electronExec, ['.'], {
+
+      // Root/systemd launches need --no-sandbox; setuid chrome-sandbox often fails in /opt.
+      const electronArgs = ['.'];
+      const asRoot = typeof process.getuid === 'function' && process.getuid() === 0;
+      if (process.platform === 'linux' && (asRoot || process.env.SPECTRE_ELECTRON_NO_SANDBOX === '1')) {
+        electronArgs.unshift('--no-sandbox');
+      }
+
+      const child = spawn(electronExec, electronArgs, {
         cwd: pipDir,
         env: {
-          ...process.env,
+          ...guiEnv,
           SPECTRE_WIDGET_URL: url,
           SPECTRE_WIDGET_AUTO_DOCK: this.getAutoDock() ? '1' : '0',
           SPECTRE_WIDGET_PINNED: this.getPinned() ? '1' : '0',
           SPECTRE_WIDGET_OPACITY: String(opacity),
+          // Avoid Electron setuid sandbox failures under systemd/root.
+          ...(asRoot ? { ELECTRON_DISABLE_SANDBOX: '1' } : {}),
         },
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
